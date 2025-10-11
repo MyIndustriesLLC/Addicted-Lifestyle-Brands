@@ -1,60 +1,25 @@
+import { useState } from "react";
 import { HeroSection } from "@/components/hero-section";
 import { ProductCard } from "@/components/product-card";
+import { PurchaseDialog } from "@/components/purchase-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { ShieldCheck, Zap, Globe } from "lucide-react";
-
-const MOCK_PRODUCTS = [
-  {
-    id: "1",
-    name: "Blockchain Tee",
-    price: 25,
-    image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=400&fit=crop",
-    nftStatus: "available" as const,
-    barcodeId: "BC7X9K2M",
-  },
-  {
-    id: "2",
-    name: "Crypto Wave Shirt",
-    price: 30,
-    image: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=400&h=400&fit=crop",
-    nftStatus: "available" as const,
-    barcodeId: "CW3P8L1N",
-  },
-  {
-    id: "3",
-    name: "NFT Limited Edition",
-    price: 45,
-    image: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=400&h=400&fit=crop",
-    nftStatus: "minted" as const,
-    barcodeId: "NL5R2T9Q",
-  },
-  {
-    id: "4",
-    name: "Digital Streetwear",
-    price: 28,
-    image: "https://images.unsplash.com/photo-1503341338385-b2a8b4ac95d3?w=400&h=400&fit=crop",
-    nftStatus: "available" as const,
-    barcodeId: "DS4M6K8P",
-  },
-  {
-    id: "5",
-    name: "Web3 Classic",
-    price: 35,
-    image: "https://images.unsplash.com/photo-1562157873-818bc0726f68?w=400&h=400&fit=crop",
-    nftStatus: "available" as const,
-    barcodeId: "W3C7N9L2",
-  },
-  {
-    id: "6",
-    name: "Ripple Edition",
-    price: 40,
-    image: "https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=400&h=400&fit=crop",
-    nftStatus: "pending" as const,
-    barcodeId: "RE8Q4X1M",
-  },
-];
+import { useQuery } from "@tanstack/react-query";
+import type { Product } from "@shared/schema";
 
 export default function Home() {
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [purchaseDialogOpen, setPurchaseDialogOpen] = useState(false);
+
+  const { data: products = [], isLoading } = useQuery<Product[]>({
+    queryKey: ["/api/products"],
+  });
+
+  const handlePurchaseClick = (product: Product) => {
+    setSelectedProduct(product);
+    setPurchaseDialogOpen(true);
+  };
+
   return (
     <div className="min-h-screen">
       <HeroSection />
@@ -110,13 +75,38 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {MOCK_PRODUCTS.map((product) => (
-              <ProductCard key={product.id} {...product} />
-            ))}
-          </div>
+          {isLoading ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Loading products...</p>
+            </div>
+          ) : products.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">No products available yet. Visit the admin page to add products.</p>
+            </div>
+          ) : (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {products.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  id={product.id}
+                  name={product.name}
+                  price={product.price}
+                  image={product.imageUrl}
+                  nftStatus={product.nftStatus as "available" | "minted" | "pending"}
+                  barcodeId={product.barcodeId}
+                  onPurchase={() => handlePurchaseClick(product)}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </section>
+
+      <PurchaseDialog
+        product={selectedProduct}
+        open={purchaseDialogOpen}
+        onOpenChange={setPurchaseDialogOpen}
+      />
     </div>
   );
 }

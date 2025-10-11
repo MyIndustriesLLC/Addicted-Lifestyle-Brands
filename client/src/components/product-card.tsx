@@ -6,13 +6,16 @@ import { ShoppingCart } from "lucide-react";
 interface ProductCardProps {
   id: string;
   name: string;
-  price: number;
+  price: number | string;
   image: string;
   nftStatus: "available" | "minted" | "pending";
   barcodeId?: string;
+  onPurchase?: () => void;
 }
 
-export function ProductCard({ id, name, price, image, nftStatus, barcodeId }: ProductCardProps) {
+export function ProductCard({ id, name, price, image, nftStatus, barcodeId, onPurchase }: ProductCardProps) {
+  const priceValue = typeof price === 'string' ? parseFloat(price) : price;
+  
   return (
     <Card className="overflow-hidden hover-elevate transition-all" data-testid={`card-product-${id}`}>
       <div className="aspect-square relative overflow-hidden bg-muted">
@@ -35,10 +38,15 @@ export function ProductCard({ id, name, price, image, nftStatus, barcodeId }: Pr
       </CardContent>
       <CardFooter className="p-4 pt-0 flex items-center justify-between gap-2">
         <div>
-          <p className="text-2xl font-display font-bold" data-testid={`text-price-${id}`}>{price} XRP</p>
+          <p className="text-2xl font-display font-bold" data-testid={`text-price-${id}`}>{priceValue} XRP</p>
           <p className="text-xs text-muted-foreground">+ NFT Ownership</p>
         </div>
-        <Button size="icon" data-testid={`button-add-to-cart-${id}`}>
+        <Button 
+          size="icon" 
+          disabled={nftStatus !== "available"}
+          onClick={onPurchase}
+          data-testid={`button-add-to-cart-${id}`}
+        >
           <ShoppingCart className="h-4 w-4" />
         </Button>
       </CardFooter>

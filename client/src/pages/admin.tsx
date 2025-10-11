@@ -3,14 +3,24 @@ import { StatsCard } from "@/components/stats-card";
 import { Package, ShoppingBag, TrendingUp, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-
-const MOCK_RECENT_SALES = [
-  { id: "1", product: "Blockchain Tee", buyer: "rN7n7...4xVBd", price: 25, time: "2 mins ago" },
-  { id: "2", product: "Crypto Wave Shirt", buyer: "rM8k3...9pLqX", price: 30, time: "15 mins ago" },
-  { id: "3", product: "NFT Limited Edition", buyer: "rP2x5...7tRwY", price: 45, time: "1 hour ago" },
-];
+import { useQuery } from "@tanstack/react-query";
+import type { Product, Transaction } from "@shared/schema";
 
 export default function Admin() {
+  const { data: products = [] } = useQuery<Product[]>({
+    queryKey: ["/api/products"],
+  });
+
+  const { data: transactions = [] } = useQuery<Transaction[]>({
+    queryKey: ["/api/transactions"],
+  });
+
+  const totalRevenue = transactions
+    .filter(t => t.status === "completed")
+    .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+
+  const completedTransactions = transactions.filter(t => t.status === "completed").length;
+
   return (
     <div className="min-h-screen py-8">
       <div className="container mx-auto px-4">
@@ -22,27 +32,23 @@ export default function Admin() {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
           <StatsCard
             title="Total Products"
-            value={42}
+            value={products.length}
             icon={Package}
-            trend="+12% this month"
           />
           <StatsCard
             title="Total Sales"
-            value="1,247"
+            value={completedTransactions}
             icon={ShoppingBag}
-            trend="+23% this month"
           />
           <StatsCard
             title="Revenue (XRP)"
-            value="38,450"
+            value={totalRevenue.toFixed(2)}
             icon={TrendingUp}
-            trend="+18% this month"
           />
           <StatsCard
             title="NFTs Minted"
-            value="1,247"
+            value={products.filter(p => p.nftStatus === "minted").length}
             icon={Wallet}
-            trend="+15% this month"
           />
         </div>
 
@@ -57,22 +63,42 @@ export default function Admin() {
                 <CardTitle className="font-display">Recent Sales</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {MOCK_RECENT_SALES.map((sale) => (
-                  <div key={sale.id} className="flex items-start justify-between gap-4 p-3 rounded-md hover-elevate">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate" data-testid={`text-sale-product-${sale.id}`}>{sale.product}</p>
-                      <p className="text-xs text-muted-foreground font-mono" data-testid={`text-sale-buyer-${sale.id}`}>
-                        {sale.buyer}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1" data-testid={`text-sale-time-${sale.id}`}>
-                        {sale.time}
-                      </p>
-                    </div>
-                    <Badge variant="outline" className="shrink-0" data-testid={`badge-sale-price-${sale.id}`}>
-                      {sale.price} XRP
-                    </Badge>
-                  </div>
-                ))}
+                {transactions.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No sales yet
+                  </p>
+                ) : (
+                  transactions.slice(0, 5).map((transaction) => {
+                    const product = products.find(p => p.id === transaction.productId);
+                    const timeAgo = transaction.createdAt 
+                      ? new Date(transaction.createdAt).toLocaleString()
+                      : "Unknown";
+
+                    return (
+                      <div key={transaction.id} className="flex items-start justify-between gap-4 p-3 rounded-md hover-elevate">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate" data-testid={`text-sale-product-${transaction.id}`}>
+                            {product?.name || "Unknown Product"}
+                          </p>
+                          <p className="text-xs text-muted-foreground font-mono" data-testid={`text-sale-buyer-${transaction.id}`}>
+                            {transaction.buyerWallet.substring(0, 8)}...
+                            {transaction.buyerWallet.substring(transaction.buyerWallet.length - 6)}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1" data-testid={`text-sale-time-${transaction.id}`}>
+                            {timeAgo}
+                          </p>
+                        </div>
+                        <Badge 
+                          variant="outline" 
+                          className="shrink-0" 
+                          data-testid={`badge-sale-price-${transaction.id}`}
+                        >
+                          {transaction.amount} XRP
+                        </Badge>
+                      </div>
+                    );
+                  })
+                )}
               </CardContent>
             </Card>
           </div>
