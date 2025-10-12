@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -18,13 +18,21 @@ interface PurchaseDialogProps {
   product: Product | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  customerWallet?: string;
 }
 
-export function PurchaseDialog({ product, open, onOpenChange }: PurchaseDialogProps) {
-  const [walletAddress, setWalletAddress] = useState("");
+export function PurchaseDialog({ product, open, onOpenChange, customerWallet }: PurchaseDialogProps) {
+  const [walletAddress, setWalletAddress] = useState(customerWallet || "");
   const [purchaseComplete, setPurchaseComplete] = useState(false);
   const [nftData, setNftData] = useState<any>(null);
   const queryClient = useQueryClient();
+
+  // Auto-fill wallet address when customerWallet changes
+  useEffect(() => {
+    if (customerWallet) {
+      setWalletAddress(customerWallet);
+    }
+  }, [customerWallet]);
 
   const purchaseMutation = useMutation({
     mutationFn: async () => {

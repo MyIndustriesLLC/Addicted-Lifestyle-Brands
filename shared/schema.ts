@@ -42,8 +42,9 @@ export const transactions = pgTable("transactions", {
 export const customers = pgTable("customers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   walletAddress: text("wallet_address").notNull().unique(),
-  email: text("email"),
+  email: text("email").unique(),
   name: text("name"),
+  password: text("password"),
   totalPurchases: numeric("total_purchases", { precision: 10, scale: 0 }).notNull().default("0"),
   totalSpent: numeric("total_spent", { precision: 10, scale: 2 }).notNull().default("0"),
   createdAt: timestamp("created_at").defaultNow(),

@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { HeroSection } from "@/components/hero-section";
 import { ProductCard } from "@/components/product-card";
 import { PurchaseDialog } from "@/components/purchase-dialog";
+import { CustomerRegisterDialog } from "@/components/customer-register-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { ShieldCheck, Zap, Globe } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -10,14 +11,46 @@ import type { Product } from "@shared/schema";
 export default function Home() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [purchaseDialogOpen, setPurchaseDialogOpen] = useState(false);
+  const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
     queryKey: ["/api/products"],
   });
 
+  const { data: customerAuth, refetch: refetchAuth } = useQuery({
+    queryKey: ["/api/customer/me"],
+  });
+
+  useEffect(() => {
+    // Show registration dialog for first-time visitors
+    if (customerAuth && !customerAuth.authenticated) {
+      const hasSeenWelcome = localStorage.getItem("hasSeenWelcome");
+      if (!hasSeenWelcome) {
+        setRegisterDialogOpen(true);
+      }
+    }
+  }, [customerAuth]);
+
   const handlePurchaseClick = (product: Product) => {
+    // Check if user is authenticated before allowing purchase
+    if (!customerAuth?.authenticated) {
+      setRegisterDialogOpen(true);
+      return;
+    }
     setSelectedProduct(product);
     setPurchaseDialogOpen(true);
+  };
+
+  const handleRegistrationSuccess = () => {
+    localStorage.setItem("hasSeenWelcome", "true");
+    refetchAuth();
+  };
+
+  const handleCloseRegisterDialog = (open: boolean) => {
+    setRegisterDialogOpen(open);
+    if (!open) {
+      localStorage.setItem("hasSeenWelcome", "true");
+    }
   };
 
   return (
@@ -108,6 +141,13 @@ export default function Home() {
         product={selectedProduct}
         open={purchaseDialogOpen}
         onOpenChange={setPurchaseDialogOpen}
+        customerWallet={(customerAuth as any)?.customer?.walletAddress}
+      />
+
+      <CustomerRegisterDialog
+        open={registerDialogOpen}
+        onOpenChange={handleCloseRegisterDialog}
+        onSuccess={handleRegistrationSuccess}
       />
     </div>
   );

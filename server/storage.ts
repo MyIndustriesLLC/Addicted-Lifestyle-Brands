@@ -39,6 +39,7 @@ export interface IStorage {
   createCustomer(customer: InsertCustomer): Promise<Customer>;
   getCustomer(id: string): Promise<Customer | undefined>;
   getCustomerByWallet(walletAddress: string): Promise<Customer | undefined>;
+  getCustomerByEmail(email: string): Promise<Customer | undefined>;
   getAllCustomers(): Promise<Customer[]>;
   updateCustomer(id: string, updates: Partial<Customer>): Promise<void>;
   deleteCustomer(id: string): Promise<void>;
@@ -205,6 +206,7 @@ export class MemStorage implements IStorage {
       ...insertCustomer,
       email: insertCustomer.email ?? null,
       name: insertCustomer.name ?? null,
+      password: insertCustomer.password ?? null,
       totalPurchases: insertCustomer.totalPurchases ?? "0",
       totalSpent: insertCustomer.totalSpent ?? "0",
       id,
@@ -212,6 +214,12 @@ export class MemStorage implements IStorage {
     };
     this.customers.set(id, customer);
     return customer;
+  }
+
+  async getCustomerByEmail(email: string): Promise<Customer | undefined> {
+    return Array.from(this.customers.values()).find(
+      (customer) => customer.email === email
+    );
   }
 
   async getCustomer(id: string): Promise<Customer | undefined> {

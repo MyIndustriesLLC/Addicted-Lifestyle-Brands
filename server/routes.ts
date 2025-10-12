@@ -1,11 +1,18 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
+import bcrypt from "bcrypt";
 import { storage } from "./storage";
 import { rippleService } from "./ripple-service";
 import { insertProductSchema, insertTransactionSchema, insertCustomerSchema, insertEmployeeSchema } from "@shared/schema";
 import { z } from "zod";
 import { requireAdminAuth, verifyAdminPassword } from "./admin-auth";
+
+declare module "express-session" {
+  interface SessionData {
+    customerId?: string;
+  }
+}
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -322,6 +329,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       res.status(500).json({ error: "Failed to delete product" });
     }
+  });
+
+  // Customer authentication
+  app.post("/api/customer/register", async (req, res) => {
+    try {
+      const { email, password, name, walletAddress } = req.body;
+
+      if (!email || !password || !walletAddress) {
+        return res.status(400).json({ error: "Email, password, and wallet address required" });
+      }
+
+      // Check if customer already exists
+      const existing = await storage.getCustomerByEmail(email);
+      if (existing) {
+        return res.status(400).json({ error: "Email already registered" });
+      }
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Create customer
+      const customer = await storage.createCustomer({
+        email,
+        password: hashedPassword,
+        name: name || null,
+        walletAddress,
+      });
+
+      // Store customer ID in session
+      req.session.customerId = customer.id;
+
+      // Return customer without password
+      const { password: _, ...customerData } = customer;
+      res.json(customerData);
+    } catch (error) {
+      console.error("Registration error:", error);
+      res.status(500).json({ error: "Registration failed" });
+    }
+  });
+
+  app.post("/api/customer/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({ error: "Email and password required" });
+      }
+
+      const customer = await storage.getCustomerByEmail(email);
+      if (!customer || !customer.password) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+
+      const isValid = await bcrypt.compare(password, customer.password);
+      if (!isValid) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+
+      req.session.customerId = customer.id;
+
+      const { password: _, ...customerData } = customer;
+      res.json(customerData);
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ error: "Login failed" });
+    }
+  });
+
+  app.get("/api/customer/me", async (req, res) => {
+    try {
+      if (!req.session.customerId) {
+        return res.json({ authenticated: false });
+      }
+
+      const customer = await storage.getCustomer(req.session.customerId);
+      if (!customer) {
+        return res.json({ authenticated: false });
+      }
+
+      const { password: _, ...customerData } = customer;
+      res.json({ authenticated: true, customer: customerData });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get customer data" });
+    }
+  });
+
+  app.post("/api/customer/logout", (req, res) => {
+    req.session.customerId = undefined;
+    res.json({ success: true });
   });
 
   const httpServer = createServer(app);
