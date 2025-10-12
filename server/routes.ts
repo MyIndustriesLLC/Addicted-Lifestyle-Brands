@@ -71,20 +71,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Product not found" });
       }
 
-      if (product.nftStatus !== "available") {
-        return res.status(400).json({ error: "Product not available" });
+      // Check inventory availability
+      const isAvailable = await storage.checkInventoryAvailable(product.id);
+      if (!isAvailable) {
+        return res.status(400).json({ error: "Product sold out - inventory limit reached" });
       }
 
-      // Create transaction
+      // Generate unique barcode for this purchase
+      const uniqueBarcodeId = Math.random().toString(36).substring(2, 12).toUpperCase();
+      
+      // Increment sales count and get purchase number
+      const purchaseNumber = await storage.incrementProductSales(product.id);
+
+      // Create transaction with unique barcode
       const transaction = await storage.createTransaction({
         productId: product.id,
         buyerWallet,
         amount: product.price,
-        status: "pending"
+        status: "pending",
+        uniqueBarcodeId,
+        purchaseNumber: purchaseNumber.toString()
       });
-
-      // Update product status
-      await storage.updateProductNftStatus(product.id, "pending");
 
       // Create NFT record
       const nft = await storage.createNFT({
@@ -92,11 +99,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "pending"
       });
 
-      // Mint NFT on Ripple
+      // Mint NFT on Ripple with unique barcode
       const mintResult = await rippleService.mintNFT({
-        barcodeId: product.barcodeId,
+        barcodeId: uniqueBarcodeId,
         productName: product.name,
-        productId: product.id
+        productId: product.id,
+        purchaseNumber
       });
 
       if (mintResult.success) {
@@ -116,24 +124,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: "completed"
         });
 
-        // Update product status
-        await storage.updateProductNftStatus(product.id, "minted");
-
         res.json({
           success: true,
-          transaction,
+          transaction: {
+            ...transaction,
+            nftId: nft.id,
+            txHash: mintResult.transactionHash,
+            status: "completed"
+          },
           nft: {
             ...nft,
             tokenId: mintResult.tokenId,
             transactionHash: mintResult.transactionHash,
             status: "minted"
-          }
+          },
+          uniqueBarcodeId,
+          purchaseNumber
         });
       } else {
-        // Rollback on failure
+        // Rollback on failure - decrement sales count
+        const product = await storage.getProduct(req.params.id);
+        if (product) {
+          const currentSales = parseInt(product.salesCount);
+          product.salesCount = Math.max(0, currentSales - 1).toString();
+        }
+        
         await storage.updateNFT(nft.id, { status: "failed" });
         await storage.updateTransaction(transaction.id, { status: "failed" });
-        await storage.updateProductNftStatus(product.id, "available");
 
         res.status(500).json({ 
           success: false, 

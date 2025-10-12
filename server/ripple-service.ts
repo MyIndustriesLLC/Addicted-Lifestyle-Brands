@@ -4,6 +4,7 @@ interface MintNFTParams {
   barcodeId: string;
   productName: string;
   productId: string;
+  purchaseNumber?: number;
 }
 
 interface MintNFTResult {
@@ -68,6 +69,7 @@ export class RippleService {
           name: params.productName,
           barcode: params.barcodeId,
           productId: params.productId,
+          purchaseNumber: params.purchaseNumber,
         })
       );
 
