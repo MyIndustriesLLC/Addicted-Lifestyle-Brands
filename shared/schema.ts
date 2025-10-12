@@ -11,6 +11,8 @@ export const products = pgTable("products", {
   imageUrl: text("image_url").notNull(),
   barcodeId: text("barcode_id").notNull().unique(),
   nftStatus: text("nft_status").notNull().default("available"),
+  salesCount: numeric("sales_count", { precision: 10, scale: 0 }).notNull().default("0"),
+  inventoryLimit: numeric("inventory_limit", { precision: 10, scale: 0 }).notNull().default("500"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -32,6 +34,8 @@ export const transactions = pgTable("transactions", {
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
   txHash: text("tx_hash"),
   status: text("status").notNull().default("pending"),
+  uniqueBarcodeId: text("unique_barcode_id").notNull(),
+  purchaseNumber: numeric("purchase_number", { precision: 10, scale: 0 }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

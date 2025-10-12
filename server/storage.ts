@@ -14,6 +14,8 @@ export interface IStorage {
   getProduct(id: string): Promise<Product | undefined>;
   getAllProducts(): Promise<Product[]>;
   updateProductNftStatus(id: string, status: string): Promise<void>;
+  incrementProductSales(id: string): Promise<number>;
+  checkInventoryAvailable(id: string): Promise<boolean>;
 
   // NFT operations
   createNFT(nft: InsertNFT): Promise<NFT>;
@@ -46,6 +48,8 @@ export class MemStorage implements IStorage {
       ...insertProduct,
       description: insertProduct.description ?? null,
       nftStatus: insertProduct.nftStatus ?? "available",
+      salesCount: insertProduct.salesCount ?? "0",
+      inventoryLimit: insertProduct.inventoryLimit ?? "500",
       id,
       createdAt: new Date()
     };
@@ -67,6 +71,28 @@ export class MemStorage implements IStorage {
       product.nftStatus = status;
       this.products.set(id, product);
     }
+  }
+
+  async incrementProductSales(id: string): Promise<number> {
+    const product = this.products.get(id);
+    if (!product) {
+      throw new Error("Product not found");
+    }
+    const currentSales = parseInt(product.salesCount);
+    const newSalesCount = currentSales + 1;
+    product.salesCount = newSalesCount.toString();
+    this.products.set(id, product);
+    return newSalesCount;
+  }
+
+  async checkInventoryAvailable(id: string): Promise<boolean> {
+    const product = this.products.get(id);
+    if (!product) {
+      return false;
+    }
+    const salesCount = parseInt(product.salesCount);
+    const inventoryLimit = parseInt(product.inventoryLimit);
+    return salesCount < inventoryLimit;
   }
 
   // NFT operations
@@ -111,6 +137,7 @@ export class MemStorage implements IStorage {
       status: insertTransaction.status ?? "pending",
       nftId: insertTransaction.nftId ?? null,
       txHash: insertTransaction.txHash ?? null,
+      purchaseNumber: insertTransaction.purchaseNumber ?? null,
       id,
       createdAt: new Date()
     };
