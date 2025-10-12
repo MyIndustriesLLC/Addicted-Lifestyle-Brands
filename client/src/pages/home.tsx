@@ -54,43 +54,43 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="w-full pb-8 sm:pb-12">
       <HeroSection />
 
-      <section className="py-16 border-b">
-        <div className="container mx-auto px-4">
-          <div className="grid gap-6 md:grid-cols-3 max-w-5xl mx-auto">
+      <section className="py-8 sm:py-12 md:py-16 border-b">
+        <div className="container mx-auto px-3 sm:px-4">
+          <div className="grid gap-4 sm:gap-6 md:grid-cols-3 max-w-5xl mx-auto">
             <Card className="text-center">
-              <CardContent className="p-6">
-                <div className="w-12 h-12 bg-primary/10 rounded-md flex items-center justify-center mx-auto mb-4">
-                  <ShieldCheck className="h-6 w-6 text-primary" />
+              <CardContent className="p-4 sm:p-6">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-md flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                  <ShieldCheck className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                 </div>
-                <h3 className="font-display font-semibold mb-2">Blockchain Verified</h3>
-                <p className="text-sm text-muted-foreground">
+                <h3 className="font-display font-semibold text-sm sm:text-base mb-1.5 sm:mb-2">Blockchain Verified</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Every T-shirt comes with an immutable NFT on Ripple's secure network
                 </p>
               </CardContent>
             </Card>
 
             <Card className="text-center">
-              <CardContent className="p-6">
-                <div className="w-12 h-12 bg-primary/10 rounded-md flex items-center justify-center mx-auto mb-4">
-                  <Zap className="h-6 w-6 text-primary" />
+              <CardContent className="p-4 sm:p-6">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-md flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                  <Zap className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                 </div>
-                <h3 className="font-display font-semibold mb-2">Instant Ownership</h3>
-                <p className="text-sm text-muted-foreground">
+                <h3 className="font-display font-semibold text-sm sm:text-base mb-1.5 sm:mb-2">Instant Ownership</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   NFT automatically transfers to your wallet upon purchase completion
                 </p>
               </CardContent>
             </Card>
 
             <Card className="text-center">
-              <CardContent className="p-6">
-                <div className="w-12 h-12 bg-primary/10 rounded-md flex items-center justify-center mx-auto mb-4">
-                  <Globe className="h-6 w-6 text-primary" />
+              <CardContent className="p-4 sm:p-6">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-primary/10 rounded-md flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                  <Globe className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                 </div>
-                <h3 className="font-display font-semibold mb-2">Global Marketplace</h3>
-                <p className="text-sm text-muted-foreground">
+                <h3 className="font-display font-semibold text-sm sm:text-base mb-1.5 sm:mb-2">Global Marketplace</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   Trade, sell, or showcase your NFT streetwear collection worldwide
                 </p>
               </CardContent>
@@ -99,11 +99,11 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="py-16">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="font-display font-bold text-3xl md:text-4xl mb-4">Featured Collection</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
+      <section className="py-8 sm:py-12 md:py-16">
+        <div className="container mx-auto px-3 sm:px-4">
+          <div className="text-center mb-8 sm:mb-12">
+            <h2 className="font-display font-bold text-2xl sm:text-3xl md:text-4xl mb-3 sm:mb-4">Featured Collection</h2>
+            <p className="text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto px-4 sm:px-0">
               Each piece comes with a unique barcode NFT, proving authenticity and ownership on the blockchain
             </p>
           </div>
@@ -113,11 +113,11 @@ export default function Home() {
               <p className="text-muted-foreground">Loading products...</p>
             </div>
           ) : products.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">No products available yet. Visit the admin page to add products.</p>
+            <div className="text-center py-12 px-4">
+              <p className="text-sm sm:text-base text-muted-foreground">No products available yet. Visit the admin page to add products.</p>
             </div>
           ) : (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {products.map((product) => (
                 <ProductCard
                   key={product.id}

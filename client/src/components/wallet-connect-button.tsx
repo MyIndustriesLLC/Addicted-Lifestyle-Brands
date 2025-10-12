@@ -25,9 +25,9 @@ export function WalletConnectButton() {
         </Badge>
         <Button
           variant="ghost"
-          size="sm"
           onClick={handleConnect}
           data-testid="button-wallet-disconnect"
+          className="min-h-11"
         >
           Disconnect
         </Button>
@@ -36,7 +36,7 @@ export function WalletConnectButton() {
   }
 
   return (
-    <Button onClick={handleConnect} className="gap-2" data-testid="button-wallet-connect">
+    <Button onClick={handleConnect} className="gap-2 min-h-11" data-testid="button-wallet-connect">
       <Wallet className="h-4 w-4" />
       Connect Wallet
     </Button>

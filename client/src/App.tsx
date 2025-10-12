@@ -34,9 +34,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <ThemeProvider defaultTheme="dark">
-          <div className="min-h-screen flex flex-col">
+          <div className="fixed inset-0 flex flex-col overflow-hidden">
             {!isAdminRoute && <Header />}
-            <main className="flex-1">
+            <main className="flex-1 overflow-y-auto overflow-x-hidden">
               <Router />
             </main>
           </div>

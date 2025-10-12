@@ -26,14 +26,14 @@ export default function Admin() {
   const totalRemaining = totalInventory - totalSold;
 
   return (
-    <div className="min-h-screen py-8">
-      <div className="container mx-auto px-4">
-        <div className="mb-8">
-          <h1 className="font-display font-bold text-3xl mb-2">Admin Dashboard</h1>
-          <p className="text-muted-foreground">Manage your NFT streetwear inventory</p>
+    <div className="w-full py-4 sm:py-6 md:py-8 pb-8 sm:pb-12">
+      <div className="container mx-auto px-3 sm:px-4">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="font-display font-bold text-2xl sm:text-3xl mb-1.5 sm:mb-2">Admin Dashboard</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Manage your NFT streetwear inventory</p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+        <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-6 sm:mb-8">
           <StatsCard
             title="Total Products"
             value={products.length}
@@ -59,7 +59,7 @@ export default function Admin() {
           />
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-3 mb-8">
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-3 mb-6 sm:mb-8">
           <div className="lg:col-span-2">
             <AdminUploadForm />
           </div>

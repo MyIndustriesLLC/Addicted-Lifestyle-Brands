@@ -57,28 +57,28 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="w-full h-full flex items-center justify-center p-3 sm:p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center space-y-2">
-          <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">
-            <ShieldCheck className="w-6 h-6 text-primary" />
+        <CardHeader className="text-center space-y-2 p-4 sm:p-6">
+          <div className="mx-auto w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+            <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
           </div>
-          <CardTitle className="font-display text-2xl">Admin Portal</CardTitle>
-          <CardDescription>Enter your admin password to continue</CardDescription>
+          <CardTitle className="font-display text-xl sm:text-2xl">Admin Portal</CardTitle>
+          <CardDescription className="text-sm">Enter your admin password to continue</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="password"
                   type="password"
                   placeholder="Enter admin password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 h-11"
                   disabled={isLoading}
                   data-testid="input-admin-password"
                 />
@@ -86,7 +86,7 @@ export default function AdminLogin() {
             </div>
             <Button 
               type="submit" 
-              className="w-full" 
+              className="w-full h-11" 
               disabled={isLoading}
               data-testid="button-admin-login"
             >
