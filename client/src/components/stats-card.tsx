@@ -6,9 +6,10 @@ interface StatsCardProps {
   value: string | number;
   icon: LucideIcon;
   trend?: string;
+  subtitle?: string;
 }
 
-export function StatsCard({ title, value, icon: Icon, trend }: StatsCardProps) {
+export function StatsCard({ title, value, icon: Icon, trend, subtitle }: StatsCardProps) {
   return (
     <Card>
       <CardContent className="p-6">
@@ -19,6 +20,11 @@ export function StatsCard({ title, value, icon: Icon, trend }: StatsCardProps) {
             {trend && (
               <p className="text-xs text-chart-3 mt-1" data-testid="text-stats-trend">
                 {trend}
+              </p>
+            )}
+            {subtitle && (
+              <p className="text-xs text-muted-foreground mt-1" data-testid="text-stats-subtitle">
+                {subtitle}
               </p>
             )}
           </div>

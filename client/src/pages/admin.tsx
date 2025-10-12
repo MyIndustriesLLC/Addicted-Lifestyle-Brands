@@ -20,6 +20,10 @@ export default function Admin() {
     .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
   const completedTransactions = transactions.filter(t => t.status === "completed").length;
+  
+  const totalInventory = products.reduce((sum, p) => sum + parseInt(p.inventoryLimit || "500"), 0);
+  const totalSold = products.reduce((sum, p) => sum + parseInt(p.salesCount || "0"), 0);
+  const totalRemaining = totalInventory - totalSold;
 
   return (
     <div className="min-h-screen py-8">
@@ -34,11 +38,13 @@ export default function Admin() {
             title="Total Products"
             value={products.length}
             icon={Package}
+            subtitle={`${totalRemaining} items available`}
           />
           <StatsCard
             title="Total Sales"
             value={completedTransactions}
             icon={ShoppingBag}
+            subtitle={`${totalSold} of ${totalInventory} sold`}
           />
           <StatsCard
             title="Revenue (XRP)"
@@ -47,8 +53,9 @@ export default function Admin() {
           />
           <StatsCard
             title="NFTs Minted"
-            value={products.filter(p => p.nftStatus === "minted").length}
+            value={completedTransactions}
             icon={Wallet}
+            subtitle="Unique per purchase"
           />
         </div>
 
