@@ -4,7 +4,11 @@ import {
   type NFT, 
   type InsertNFT,
   type Transaction,
-  type InsertTransaction 
+  type InsertTransaction,
+  type Customer,
+  type InsertCustomer,
+  type Employee,
+  type InsertEmployee 
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
@@ -13,6 +17,8 @@ export interface IStorage {
   createProduct(product: InsertProduct): Promise<Product>;
   getProduct(id: string): Promise<Product | undefined>;
   getAllProducts(): Promise<Product[]>;
+  updateProduct(id: string, updates: Partial<Product>): Promise<void>;
+  deleteProduct(id: string): Promise<void>;
   updateProductNftStatus(id: string, status: string): Promise<void>;
   incrementProductSales(id: string): Promise<number>;
   checkInventoryAvailable(id: string): Promise<boolean>;
@@ -28,17 +34,36 @@ export interface IStorage {
   getTransaction(id: string): Promise<Transaction | undefined>;
   getAllTransactions(): Promise<Transaction[]>;
   updateTransaction(id: string, updates: Partial<Transaction>): Promise<void>;
+
+  // Customer operations
+  createCustomer(customer: InsertCustomer): Promise<Customer>;
+  getCustomer(id: string): Promise<Customer | undefined>;
+  getCustomerByWallet(walletAddress: string): Promise<Customer | undefined>;
+  getAllCustomers(): Promise<Customer[]>;
+  updateCustomer(id: string, updates: Partial<Customer>): Promise<void>;
+  deleteCustomer(id: string): Promise<void>;
+
+  // Employee operations
+  createEmployee(employee: InsertEmployee): Promise<Employee>;
+  getEmployee(id: string): Promise<Employee | undefined>;
+  getAllEmployees(): Promise<Employee[]>;
+  updateEmployee(id: string, updates: Partial<Employee>): Promise<void>;
+  deleteEmployee(id: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
   private products: Map<string, Product>;
   private nfts: Map<string, NFT>;
   private transactions: Map<string, Transaction>;
+  private customers: Map<string, Customer>;
+  private employees: Map<string, Employee>;
 
   constructor() {
     this.products = new Map();
     this.nfts = new Map();
     this.transactions = new Map();
+    this.customers = new Map();
+    this.employees = new Map();
   }
 
   // Product operations
@@ -63,6 +88,18 @@ export class MemStorage implements IStorage {
 
   async getAllProducts(): Promise<Product[]> {
     return Array.from(this.products.values());
+  }
+
+  async updateProduct(id: string, updates: Partial<Product>): Promise<void> {
+    const product = this.products.get(id);
+    if (product) {
+      Object.assign(product, updates);
+      this.products.set(id, product);
+    }
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    this.products.delete(id);
   }
 
   async updateProductNftStatus(id: string, status: string): Promise<void> {
@@ -159,6 +196,82 @@ export class MemStorage implements IStorage {
       Object.assign(transaction, updates);
       this.transactions.set(id, transaction);
     }
+  }
+
+  // Customer operations
+  async createCustomer(insertCustomer: InsertCustomer): Promise<Customer> {
+    const id = randomUUID();
+    const customer: Customer = {
+      ...insertCustomer,
+      email: insertCustomer.email ?? null,
+      name: insertCustomer.name ?? null,
+      totalPurchases: insertCustomer.totalPurchases ?? "0",
+      totalSpent: insertCustomer.totalSpent ?? "0",
+      id,
+      createdAt: new Date()
+    };
+    this.customers.set(id, customer);
+    return customer;
+  }
+
+  async getCustomer(id: string): Promise<Customer | undefined> {
+    return this.customers.get(id);
+  }
+
+  async getCustomerByWallet(walletAddress: string): Promise<Customer | undefined> {
+    return Array.from(this.customers.values()).find(
+      (customer) => customer.walletAddress === walletAddress
+    );
+  }
+
+  async getAllCustomers(): Promise<Customer[]> {
+    return Array.from(this.customers.values());
+  }
+
+  async updateCustomer(id: string, updates: Partial<Customer>): Promise<void> {
+    const customer = this.customers.get(id);
+    if (customer) {
+      Object.assign(customer, updates);
+      this.customers.set(id, customer);
+    }
+  }
+
+  async deleteCustomer(id: string): Promise<void> {
+    this.customers.delete(id);
+  }
+
+  // Employee operations
+  async createEmployee(insertEmployee: InsertEmployee): Promise<Employee> {
+    const id = randomUUID();
+    const employee: Employee = {
+      ...insertEmployee,
+      department: insertEmployee.department ?? null,
+      id,
+      hiredAt: new Date(),
+      createdAt: new Date()
+    };
+    this.employees.set(id, employee);
+    return employee;
+  }
+
+  async getEmployee(id: string): Promise<Employee | undefined> {
+    return this.employees.get(id);
+  }
+
+  async getAllEmployees(): Promise<Employee[]> {
+    return Array.from(this.employees.values());
+  }
+
+  async updateEmployee(id: string, updates: Partial<Employee>): Promise<void> {
+    const employee = this.employees.get(id);
+    if (employee) {
+      Object.assign(employee, updates);
+      this.employees.set(id, employee);
+    }
+  }
+
+  async deleteEmployee(id: string): Promise<void> {
+    this.employees.delete(id);
   }
 }
 
