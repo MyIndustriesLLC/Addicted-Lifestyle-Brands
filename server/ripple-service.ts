@@ -17,6 +17,7 @@ interface MintNFTResult {
 export class RippleService {
   private client: Client;
   private wallet: Wallet | null = null;
+  private isConnected: boolean = false;
 
   constructor() {
     // Using Testnet for development - in production, use mainnet
@@ -25,16 +26,24 @@ export class RippleService {
 
   async connect(): Promise<void> {
     try {
+      if (this.isConnected && this.client.isConnected()) {
+        return;
+      }
       await this.client.connect();
+      this.isConnected = true;
       console.log("Connected to Ripple network");
     } catch (error) {
+      this.isConnected = false;
       console.error("Failed to connect to Ripple:", error);
       throw error;
     }
   }
 
   async disconnect(): Promise<void> {
-    await this.client.disconnect();
+    if (this.isConnected) {
+      await this.client.disconnect();
+      this.isConnected = false;
+    }
   }
 
   async createWallet(): Promise<{ address: string; seed: string }> {
@@ -104,10 +113,8 @@ export class RippleService {
       console.error("NFT minting error:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: error instanceof Error ? error.message : "NFT minting failed - network error",
       };
-    } finally {
-      await this.disconnect();
     }
   }
 
