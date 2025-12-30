@@ -77,6 +77,46 @@ export default function Home() {
         onLearnMore={handleLearnMoreClick}
       />
 
+      <section className="py-10 sm:py-14 md:py-20 border-b bg-background">
+        <div className="container mx-auto px-3 sm:px-4">
+          <div className="max-w-4xl mx-auto text-center space-y-4">
+            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Section 02</p>
+            <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold">
+              Most people hide their addictions. <br className="hidden sm:block" /> We redefine them.
+            </h2>
+            <p className="text-base sm:text-lg text-muted-foreground">
+              Addicted is built on the belief that obsession isn&apos;t the enemy &mdash; <span className="font-semibold text-foreground">unfocused obsession is.</span>
+            </p>
+            <p className="text-base sm:text-lg text-muted-foreground space-y-1">
+              <span className="block">We exist for the disciplined.</span>
+              <span className="block">The builders.</span>
+              <span className="block">The ones addicted to becoming better.</span>
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="py-10 sm:py-14 md:py-20">
+        <div className="container mx-auto px-3 sm:px-4">
+          <div className="max-w-3xl mx-auto bg-muted/40 border border-border/80 rounded-3xl p-6 sm:p-10 text-center space-y-4 shadow-lg shadow-primary/10">
+            <p className="text-xs uppercase tracking-[0.4em] text-primary/80">Proof Statement</p>
+            <h3 className="font-display text-2xl sm:text-3xl font-bold">This isn&apos;t just apparel.</h3>
+            <p className="text-base sm:text-lg text-muted-foreground">
+              Each piece is individually verified with a unique digital mark — linking physical ownership to a permanent record.
+            </p>
+            <div className="font-mono text-sm sm:text-base text-foreground space-y-1">
+              <p>No duplicates.</p>
+              <p>No counterfeits.</p>
+              <p>No second chances.</p>
+            </div>
+            <div className="text-base sm:text-lg text-foreground">
+              <p>Wear what you&apos;re addicted to.</p>
+              <p>Stand behind it.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section ref={howItWorksRef} className="py-8 sm:py-12 md:py-16 border-b">
         <div className="container mx-auto px-3 sm:px-4">
           <div className="grid gap-4 sm:gap-6 md:grid-cols-3 max-w-5xl mx-auto">

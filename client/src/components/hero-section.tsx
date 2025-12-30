@@ -16,7 +16,7 @@ export function HeroSection({ onShopCollection, onLearnMore }: HeroSectionProps)
         <div className="max-w-3xl mx-auto text-center">
           <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-primary/10 border border-primary/20 mb-4 sm:mb-6">
             <ShieldCheck className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
-            <span className="text-xs sm:text-sm font-medium text-primary">Verified on Ripple Blockchain</span>
+            <span className="text-xs sm:text-sm font-medium text-primary">Proof of Addiction™</span>
           </div>
           
           <h1 className="font-display font-bold text-3xl sm:text-4xl md:text-5xl lg:text-7xl mb-4 sm:mb-6 bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent leading-tight" data-testid="text-hero-title">
@@ -24,12 +24,11 @@ export function HeroSection({ onShopCollection, onLearnMore }: HeroSectionProps)
             <br className="hidden sm:block" />
             Not trends. Not excuses.
           </h1>
-          <p className="text-sm sm:text-base"> </p>
-          
-          <p className="text-sm sm:text-base md:text-lg lg:text-xl text-muted-foreground mb-6 sm:mb-8 max-w-2xl mx-auto px-2 sm:px-0" data-testid="text-hero-description">
-            Each Addicted shirt is uniquely verified — no replicas, no fakes.
-            <br className="hidden sm:block" />
-            A wearable statement of what you are committed to.
+          <p className="text-sm sm:text-base md:text-lg lg:text-xl text-muted-foreground mb-4 sm:mb-5 max-w-2xl mx-auto px-2 sm:px-0" data-testid="text-hero-description">
+            Each Addicted shirt is uniquely verified — no replicas, no fakes. It&apos;s a wearable statement of what you&apos;re committed to.
+          </p>
+          <p className="text-sm sm:text-base md:text-lg lg:text-xl text-muted-foreground mb-6 sm:mb-8 max-w-2xl mx-auto px-2 sm:px-0">
+            Wear your obsession. Prove it&apos;s real.
           </p>
           
           <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-3 sm:gap-4">
