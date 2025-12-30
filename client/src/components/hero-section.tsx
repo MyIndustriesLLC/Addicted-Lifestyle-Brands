@@ -1,7 +1,12 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 
-export function HeroSection() {
+interface HeroSectionProps {
+  onShopCollection?: () => void;
+  onLearnMore?: () => void;
+}
+
+export function HeroSection({ onShopCollection, onLearnMore }: HeroSectionProps) {
   return (
     <section className="relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-accent/10 to-transparent" />
@@ -15,20 +20,35 @@ export function HeroSection() {
           </div>
           
           <h1 className="font-display font-bold text-3xl sm:text-4xl md:text-5xl lg:text-7xl mb-4 sm:mb-6 bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-transparent leading-tight" data-testid="text-hero-title">
-            Own the Future of Streetwear
+            Addicted to Progress.
+            <br className="hidden sm:block" />
+            Not trends. Not excuses.
           </h1>
+          <p className="text-sm sm:text-base"> </p>
           
           <p className="text-sm sm:text-base md:text-lg lg:text-xl text-muted-foreground mb-6 sm:mb-8 max-w-2xl mx-auto px-2 sm:px-0" data-testid="text-hero-description">
-            Every T-shirt comes with a unique NFT barcode on the Ripple network. 
-            Prove authenticity, track ownership, and join the blockchain fashion revolution.
+            Each Addicted shirt is uniquely verified — no replicas, no fakes.
+            <br className="hidden sm:block" />
+            A wearable statement of what you are committed to.
           </p>
           
           <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-3 sm:gap-4">
-            <Button size="lg" className="gap-2 w-full sm:w-auto min-h-11" data-testid="button-shop-now">
+            <Button
+              size="lg"
+              className="gap-2 w-full sm:w-auto min-h-11"
+              data-testid="button-shop-now"
+              onClick={onShopCollection}
+            >
               Shop Collection
               <ArrowRight className="h-4 w-4" />
             </Button>
-            <Button size="lg" variant="outline" className="gap-2 backdrop-blur-sm w-full sm:w-auto min-h-11" data-testid="button-learn-more">
+            <Button
+              size="lg"
+              variant="outline"
+              className="gap-2 backdrop-blur-sm w-full sm:w-auto min-h-11"
+              data-testid="button-learn-more"
+              onClick={onLearnMore}
+            >
               How It Works
             </Button>
           </div>

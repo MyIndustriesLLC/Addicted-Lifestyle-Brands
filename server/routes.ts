@@ -5,7 +5,12 @@ import bcrypt from "bcrypt";
 import session from "express-session";
 import { storage } from "./storage";
 import { rippleService } from "./ripple-service";
-import { insertProductSchema, insertTransactionSchema, insertCustomerSchema, insertEmployeeSchema } from "@shared/schema";
+import {
+  insertProductSchema,
+  insertTransactionSchema,
+  insertCustomerSchema,
+  insertEmployeeSchema,
+} from "../shared/schema";
 import { z } from "zod";
 import { requireAdminAuth, verifyAdminPassword } from "./admin-auth";
 
@@ -243,10 +248,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Customer routes (admin only)
-  app.get("/api/customers", requireAdminAuth, async (req, res) => {
+  app.get("/api/customers", requireAdminAuth, async (_req, res) => {
     try {
       const customers = await storage.getAllCustomers();
-      res.json(customers);
+      const enrichedCustomers = await Promise.all(
+        customers.map(async (customer) => {
+          const wallet = await storage.getWalletByCustomerId(customer.id);
+          const { password: _pw, ...safeCustomer } = customer;
+          return {
+            ...safeCustomer,
+            walletAddress: wallet?.xrpAddress ?? null,
+          };
+        })
+      );
+      res.json(enrichedCustomers);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch customers" });
     }
@@ -447,7 +462,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         authenticated: true, 
         customer: {
           ...customerData,
-          xrpAddress: wallet?.xrpAddress || null,
+          walletAddress: wallet?.xrpAddress ?? null,
         }
       });
     } catch (error) {

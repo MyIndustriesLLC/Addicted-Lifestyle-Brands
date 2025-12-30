@@ -1,7 +1,7 @@
-import { 
-  type Product, 
-  type InsertProduct, 
-  type NFT, 
+import {
+  type Product,
+  type InsertProduct,
+  type NFT,
   type InsertNFT,
   type Transaction,
   type InsertTransaction,
@@ -14,8 +14,8 @@ import {
   type ConversionTransaction,
   type InsertConversionTransaction,
   type Employee,
-  type InsertEmployee 
-} from "@shared/schema";
+  type InsertEmployee,
+} from "../shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -96,6 +96,17 @@ export class MemStorage implements IStorage {
     this.linkedWallets = new Map();
     this.conversionTransactions = new Map();
     this.employees = new Map();
+  }
+
+  reset(): void {
+    this.products.clear();
+    this.nfts.clear();
+    this.transactions.clear();
+    this.customers.clear();
+    this.wallets.clear();
+    this.linkedWallets.clear();
+    this.conversionTransactions.clear();
+    this.employees.clear();
   }
 
   // Product operations

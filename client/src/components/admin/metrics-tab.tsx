@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign, Package, ShoppingCart, Users } from "lucide-react";
-import type { Product, Transaction, Customer } from "@shared/schema";
+import type { Product, Transaction } from "@shared/schema";
+import type { AdminCustomer } from "@/types/api";
 
 export function MetricsTab() {
   const { data: products = [] } = useQuery<Product[]>({
@@ -12,7 +13,7 @@ export function MetricsTab() {
     queryKey: ["/api/transactions"],
   });
 
-  const { data: customers = [] } = useQuery<Customer[]>({
+  const { data: customers = [] } = useQuery<AdminCustomer[]>({
     queryKey: ["/api/customers"],
   });
 

@@ -9,12 +9,13 @@ import { CustomersTab } from "@/components/admin/customers-tab";
 import { ProductsTab } from "@/components/admin/products-tab";
 import { EmployeesTab } from "@/components/admin/employees-tab";
 import { MetricsTab } from "@/components/admin/metrics-tab";
+import type { AuthStatusResponse } from "@/types/api";
 
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
-  const { data: authStatus } = useQuery({
+  const { data: authStatus } = useQuery<AuthStatusResponse>({
     queryKey: ["/api/admin/check"],
   });
 

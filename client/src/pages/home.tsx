@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { HeroSection } from "@/components/hero-section";
 import { ProductCard } from "@/components/product-card";
 import { PurchaseDialog } from "@/components/purchase-dialog";
@@ -7,17 +7,20 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ShieldCheck, Zap, Globe } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { Product } from "@shared/schema";
+import type { CustomerAuthResponse } from "@/types/api";
 
 export default function Home() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [purchaseDialogOpen, setPurchaseDialogOpen] = useState(false);
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
+  const howItWorksRef = useRef<HTMLElement | null>(null);
+  const collectionRef = useRef<HTMLElement | null>(null);
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
     queryKey: ["/api/products"],
   });
 
-  const { data: customerAuth, refetch: refetchAuth } = useQuery({
+  const { data: customerAuth, refetch: refetchAuth } = useQuery<CustomerAuthResponse>({
     queryKey: ["/api/customer/me"],
   });
 
@@ -53,11 +56,28 @@ export default function Home() {
     }
   };
 
+  const scrollToSection = (element: HTMLElement | null) => {
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  const handleShopCollectionClick = () => {
+    scrollToSection(collectionRef.current);
+  };
+
+  const handleLearnMoreClick = () => {
+    scrollToSection(howItWorksRef.current);
+  };
+
   return (
     <div className="w-full pb-8 sm:pb-12">
-      <HeroSection />
+      <HeroSection
+        onShopCollection={handleShopCollectionClick}
+        onLearnMore={handleLearnMoreClick}
+      />
 
-      <section className="py-8 sm:py-12 md:py-16 border-b">
+      <section ref={howItWorksRef} className="py-8 sm:py-12 md:py-16 border-b">
         <div className="container mx-auto px-3 sm:px-4">
           <div className="grid gap-4 sm:gap-6 md:grid-cols-3 max-w-5xl mx-auto">
             <Card className="text-center">
@@ -99,7 +119,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="py-8 sm:py-12 md:py-16">
+      <section ref={collectionRef} className="py-8 sm:py-12 md:py-16">
         <div className="container mx-auto px-3 sm:px-4">
           <div className="text-center mb-8 sm:mb-12">
             <h2 className="font-display font-bold text-2xl sm:text-3xl md:text-4xl mb-3 sm:mb-4">Featured Collection</h2>
@@ -141,7 +161,7 @@ export default function Home() {
         product={selectedProduct}
         open={purchaseDialogOpen}
         onOpenChange={setPurchaseDialogOpen}
-        customerWallet={(customerAuth as any)?.customer?.walletAddress}
+        customerWallet={customerAuth?.customer?.walletAddress || undefined}
       />
 
       <CustomerRegisterDialog
