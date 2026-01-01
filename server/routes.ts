@@ -800,6 +800,247 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ success: true });
   });
 
+  // ============================================
+  // CART & CHECKOUT ROUTES
+  // ============================================
+
+  // Add item to cart
+  app.post("/api/cart/add", async (req, res) => {
+    if (!req.session.customerId) {
+      return res.status(401).json({ error: "Unauthorized - Please log in" });
+    }
+
+    try {
+      const { productId, quantity } = req.body;
+
+      if (!productId) {
+        return res.status(400).json({ error: "Product ID is required" });
+      }
+
+      // Check if product exists
+      const product = await storage.getProduct(productId);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Check inventory
+      const inventoryAvailable = await storage.checkInventoryAvailable(productId);
+      if (!inventoryAvailable) {
+        return res.status(400).json({ error: "Product is out of stock" });
+      }
+
+      const cartItem = await storage.addToCart(
+        req.session.customerId,
+        productId,
+        quantity || 1
+      );
+
+      res.json(cartItem);
+    } catch (error) {
+      console.error("Failed to add to cart:", error);
+      res.status(500).json({ error: "Failed to add item to cart" });
+    }
+  });
+
+  // Get cart items
+  app.get("/api/cart", async (req, res) => {
+    if (!req.session.customerId) {
+      return res.status(401).json({ error: "Unauthorized - Please log in" });
+    }
+
+    try {
+      const cartItems = await storage.getCartItems(req.session.customerId);
+
+      // Enrich cart items with product details
+      const enrichedItems = await Promise.all(
+        cartItems.map(async (item) => {
+          const product = await storage.getProduct(item.productId);
+          return {
+            ...item,
+            product,
+          };
+        })
+      );
+
+      const { subtotal, itemCount } = await storage.getCartTotal(req.session.customerId);
+
+      res.json({
+        items: enrichedItems,
+        subtotal,
+        itemCount,
+      });
+    } catch (error) {
+      console.error("Failed to get cart:", error);
+      res.status(500).json({ error: "Failed to fetch cart" });
+    }
+  });
+
+  // Update cart item quantity
+  app.patch("/api/cart/:productId", async (req, res) => {
+    if (!req.session.customerId) {
+      return res.status(401).json({ error: "Unauthorized - Please log in" });
+    }
+
+    try {
+      const { productId } = req.params;
+      const { quantity } = req.body;
+
+      if (quantity === undefined || quantity < 0) {
+        return res.status(400).json({ error: "Valid quantity is required" });
+      }
+
+      await storage.updateCartItemQuantity(
+        req.session.customerId,
+        productId,
+        quantity
+      );
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to update cart:", error);
+      res.status(500).json({ error: "Failed to update cart item" });
+    }
+  });
+
+  // Remove item from cart
+  app.delete("/api/cart/:productId", async (req, res) => {
+    if (!req.session.customerId) {
+      return res.status(401).json({ error: "Unauthorized - Please log in" });
+    }
+
+    try {
+      const { productId } = req.params;
+      await storage.removeFromCart(req.session.customerId, productId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to remove from cart:", error);
+      res.status(500).json({ error: "Failed to remove item from cart" });
+    }
+  });
+
+  // Clear cart
+  app.delete("/api/cart", async (req, res) => {
+    if (!req.session.customerId) {
+      return res.status(401).json({ error: "Unauthorized - Please log in" });
+    }
+
+    try {
+      await storage.clearCart(req.session.customerId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to clear cart:", error);
+      res.status(500).json({ error: "Failed to clear cart" });
+    }
+  });
+
+  // Validate coupon
+  app.post("/api/cart/validate-coupon", async (req, res) => {
+    if (!req.session.customerId) {
+      return res.status(401).json({ error: "Unauthorized - Please log in" });
+    }
+
+    try {
+      const { code } = req.body;
+
+      if (!code) {
+        return res.status(400).json({ error: "Coupon code is required" });
+      }
+
+      const { subtotal } = await storage.getCartTotal(req.session.customerId);
+
+      const validation = await storage.validateCoupon(
+        code,
+        req.session.customerId,
+        subtotal
+      );
+
+      res.json(validation);
+    } catch (error) {
+      console.error("Failed to validate coupon:", error);
+      res.status(500).json({ error: "Failed to validate coupon" });
+    }
+  });
+
+  // Admin: Create coupon
+  app.post("/api/admin/coupons", requireAdminAuth, async (req, res) => {
+    try {
+      const { code, discountType, discountValue, minPurchaseAmount, maxUses, expiresAt } = req.body;
+
+      if (!code || !discountType || !discountValue) {
+        return res.status(400).json({ error: "Code, discount type, and discount value are required" });
+      }
+
+      // Check if code already exists
+      const existing = await storage.getCouponByCode(code);
+      if (existing) {
+        return res.status(400).json({ error: "Coupon code already exists" });
+      }
+
+      const coupon = await storage.createCoupon({
+        code: code.toUpperCase(),
+        discountType,
+        discountValue: discountValue.toString(),
+        minPurchaseAmount: minPurchaseAmount ? minPurchaseAmount.toString() : undefined,
+        maxUses: maxUses ? maxUses.toString() : undefined,
+        expiresAt: expiresAt ? new Date(expiresAt) : undefined,
+        active: new Date(), // Active immediately
+      });
+
+      res.json(coupon);
+    } catch (error) {
+      console.error("Failed to create coupon:", error);
+      res.status(500).json({ error: "Failed to create coupon" });
+    }
+  });
+
+  // Admin: Get all coupons
+  app.get("/api/admin/coupons", requireAdminAuth, async (_req, res) => {
+    try {
+      const coupons = await storage.getAllCoupons();
+      res.json(coupons);
+    } catch (error) {
+      console.error("Failed to fetch coupons:", error);
+      res.status(500).json({ error: "Failed to fetch coupons" });
+    }
+  });
+
+  // Admin: Update coupon
+  app.patch("/api/admin/coupons/:id", requireAdminAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+
+      const coupon = await storage.getCoupon(id);
+      if (!coupon) {
+        return res.status(404).json({ error: "Coupon not found" });
+      }
+
+      await storage.updateCoupon(id, updates);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to update coupon:", error);
+      res.status(500).json({ error: "Failed to update coupon" });
+    }
+  });
+
+  // Admin: Delete coupon
+  app.delete("/api/admin/coupons/:id", requireAdminAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const coupon = await storage.getCoupon(id);
+      if (!coupon) {
+        return res.status(404).json({ error: "Coupon not found" });
+      }
+
+      await storage.deleteCoupon(id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Failed to delete coupon:", error);
+      res.status(500).json({ error: "Failed to delete coupon" });
+    }
+  });
+
   // Get public customer profiles (for displaying post authors)
   app.get("/api/customers/public", async (req, res) => {
     try {

@@ -150,6 +150,40 @@ export const shippingAddresses = pgTable("shipping_addresses", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const cartItems = pgTable("cart_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").notNull().references(() => customers.id),
+  productId: varchar("product_id").notNull().references(() => products.id),
+  quantity: numeric("quantity", { precision: 10, scale: 0 }).notNull().default("1"),
+  addedAt: timestamp("added_at").defaultNow(),
+}, (table) => ({
+  uniqueCustomerProduct: unique().on(table.customerId, table.productId),
+}));
+
+export const coupons = pgTable("coupons", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: text("code").notNull().unique(),
+  discountType: text("discount_type").notNull(), // "percentage" or "fixed"
+  discountValue: numeric("discount_value", { precision: 10, scale: 2 }).notNull(),
+  minPurchaseAmount: numeric("min_purchase_amount", { precision: 10, scale: 2 }),
+  maxUses: numeric("max_uses", { precision: 10, scale: 0 }),
+  usedCount: numeric("used_count", { precision: 10, scale: 0 }).notNull().default("0"),
+  expiresAt: timestamp("expires_at"),
+  active: timestamp("active"), // null = inactive, timestamp = active since
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const couponUsage = pgTable("coupon_usage", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  couponId: varchar("coupon_id").notNull().references(() => coupons.id),
+  customerId: varchar("customer_id").notNull().references(() => customers.id),
+  transactionId: varchar("transaction_id").references(() => transactions.id),
+  discountAmount: numeric("discount_amount", { precision: 10, scale: 2 }).notNull(),
+  usedAt: timestamp("used_at").defaultNow(),
+}, (table) => ({
+  uniqueCouponCustomerTransaction: unique().on(table.couponId, table.customerId, table.transactionId),
+}));
+
 export const insertProductSchema = createInsertSchema(products).omit({
   id: true,
   createdAt: true,
@@ -221,6 +255,22 @@ export const insertShippingAddressSchema = createInsertSchema(shippingAddresses)
   createdAt: true,
 });
 
+export const insertCartItemSchema = createInsertSchema(cartItems).omit({
+  id: true,
+  addedAt: true,
+});
+
+export const insertCouponSchema = createInsertSchema(coupons).omit({
+  id: true,
+  createdAt: true,
+  usedCount: true,
+});
+
+export const insertCouponUsageSchema = createInsertSchema(couponUsage).omit({
+  id: true,
+  usedAt: true,
+});
+
 export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 
@@ -259,3 +309,12 @@ export type InsertFollow = z.infer<typeof insertFollowSchema>;
 
 export type ShippingAddress = typeof shippingAddresses.$inferSelect;
 export type InsertShippingAddress = z.infer<typeof insertShippingAddressSchema>;
+
+export type CartItem = typeof cartItems.$inferSelect;
+export type InsertCartItem = z.infer<typeof insertCartItemSchema>;
+
+export type Coupon = typeof coupons.$inferSelect;
+export type InsertCoupon = z.infer<typeof insertCouponSchema>;
+
+export type CouponUsage = typeof couponUsage.$inferSelect;
+export type InsertCouponUsage = z.infer<typeof insertCouponUsageSchema>;
