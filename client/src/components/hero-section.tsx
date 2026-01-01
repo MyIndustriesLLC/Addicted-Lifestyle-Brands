@@ -88,7 +88,7 @@ export function HeroSection({ onShopCollection, onLearnMore }: HeroSectionProps)
               <p className="text-xl sm:text-2xl font-display font-bold text-primary" data-testid="text-blockchain-verified">
                 {verifiedPercentage}%
               </p>
-              <p className="text-muted-foreground text-xs sm:text-sm">Verified</p>
+              <p className="text-muted-foreground text-xs sm:text-sm">NFTs Verified</p>
             </div>
           </div>
         </div>
