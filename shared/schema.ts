@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, numeric, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, numeric, timestamp, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -13,6 +13,7 @@ export const products = pgTable("products", {
   nftStatus: text("nft_status").notNull().default("available"),
   salesCount: numeric("sales_count", { precision: 10, scale: 0 }).notNull().default("0"),
   inventoryLimit: numeric("inventory_limit", { precision: 10, scale: 0 }).notNull().default("500"),
+  levelRequired: numeric("level_required", { precision: 10, scale: 0 }),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -36,6 +37,10 @@ export const transactions = pgTable("transactions", {
   status: text("status").notNull().default("pending"),
   uniqueBarcodeId: text("unique_barcode_id").notNull(),
   purchaseNumber: numeric("purchase_number", { precision: 10, scale: 0 }),
+  printfulOrderId: numeric("printful_order_id", { precision: 20, scale: 0 }),
+  printfulStatus: text("printful_status"),
+  printfulFileId: numeric("printful_file_id", { precision: 20, scale: 0 }),
+  emailSent: timestamp("email_sent"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -46,6 +51,11 @@ export const customers = pgTable("customers", {
   password: text("password").notNull(),
   totalPurchases: numeric("total_purchases", { precision: 10, scale: 0 }).notNull().default("0"),
   totalSpent: numeric("total_spent", { precision: 10, scale: 2 }).notNull().default("0"),
+  points: numeric("points", { precision: 10, scale: 0 }).notNull().default("0"),
+  level: numeric("level", { precision: 10, scale: 0 }).notNull().default("1"),
+  followersCount: numeric("followers_count", { precision: 10, scale: 0 }).notNull().default("0"),
+  followingCount: numeric("following_count", { precision: 10, scale: 0 }).notNull().default("0"),
+  level100RewardClaimed: timestamp("level_100_reward_claimed"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -86,6 +96,57 @@ export const employees = pgTable("employees", {
   role: text("role").notNull(),
   department: text("department"),
   hiredAt: timestamp("hired_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const posts = pgTable("posts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").notNull().references(() => customers.id),
+  imageUrl: text("image_url").notNull(),
+  caption: text("caption"),
+  likesCount: numeric("likes_count", { precision: 10, scale: 0 }).notNull().default("0"),
+  commentsCount: numeric("comments_count", { precision: 10, scale: 0 }).notNull().default("0"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const postLikes = pgTable("post_likes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  postId: varchar("post_id").notNull().references(() => posts.id),
+  customerId: varchar("customer_id").notNull().references(() => customers.id),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  uniquePostCustomer: unique().on(table.postId, table.customerId),
+}));
+
+export const comments = pgTable("comments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  postId: varchar("post_id").notNull().references(() => posts.id),
+  customerId: varchar("customer_id").notNull().references(() => customers.id),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const follows = pgTable("follows", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  followerId: varchar("follower_id").notNull().references(() => customers.id),
+  followingId: varchar("following_id").notNull().references(() => customers.id),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  uniqueFollowerFollowing: unique().on(table.followerId, table.followingId),
+}));
+
+export const shippingAddresses = pgTable("shipping_addresses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  customerId: varchar("customer_id").notNull().references(() => customers.id),
+  name: text("name").notNull(),
+  address1: text("address1").notNull(),
+  address2: text("address2"),
+  city: text("city").notNull(),
+  stateCode: text("state_code"),
+  countryCode: text("country_code").notNull(),
+  zip: text("zip").notNull(),
+  phone: text("phone"),
+  isDefault: timestamp("is_default"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -133,6 +194,33 @@ export const insertEmployeeSchema = createInsertSchema(employees).omit({
   hiredAt: true,
 });
 
+export const insertPostSchema = createInsertSchema(posts).omit({
+  id: true,
+  createdAt: true,
+  likesCount: true,
+  commentsCount: true,
+});
+
+export const insertPostLikeSchema = createInsertSchema(postLikes).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertCommentSchema = createInsertSchema(comments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertFollowSchema = createInsertSchema(follows).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertShippingAddressSchema = createInsertSchema(shippingAddresses).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 
@@ -156,3 +244,18 @@ export type InsertConversionTransaction = z.infer<typeof insertConversionTransac
 
 export type Employee = typeof employees.$inferSelect;
 export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
+
+export type Post = typeof posts.$inferSelect;
+export type InsertPost = z.infer<typeof insertPostSchema>;
+
+export type PostLike = typeof postLikes.$inferSelect;
+export type InsertPostLike = z.infer<typeof insertPostLikeSchema>;
+
+export type Comment = typeof comments.$inferSelect;
+export type InsertComment = z.infer<typeof insertCommentSchema>;
+
+export type Follow = typeof follows.$inferSelect;
+export type InsertFollow = z.infer<typeof insertFollowSchema>;
+
+export type ShippingAddress = typeof shippingAddresses.$inferSelect;
+export type InsertShippingAddress = z.infer<typeof insertShippingAddressSchema>;

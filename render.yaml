@@ -1,0 +1,48 @@
+services:
+  # Web Service - Express + React Full-Stack App
+  - type: web
+    name: addicted-lifestyle-brands
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: nft-streetwear-db
+          property: connectionString
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: WALLET_ENCRYPTION_KEY
+        generateValue: true
+      - key: PORT
+        value: 10000
+      # Add these in Render Dashboard (Settings > Environment):
+      # - ADMIN_PASSWORD
+      # - PRINTFUL_API_KEY
+      # - EMAIL_HOST
+      # - EMAIL_PORT
+      # - EMAIL_USER
+      # - EMAIL_PASSWORD
+      # - PRINTFUL_TSHIRT_VARIANT_ID
+      # - PUBLIC_URL (your Render app URL)
+      # - RIPPLE_WALLET_SEED (if using specific wallet)
+      # - RIPPLE_WALLET_ADDRESS (if using specific wallet)
+
+    healthCheckPath: /api/network/status
+
+databases:
+  # PostgreSQL Database (or use existing Neon - see note below)
+  - name: nft-streetwear-db
+    databaseName: nftstreetw ear
+    user: nftstreetw ear_user
+    plan: free
+    region: oregon
+
+# NOTE: If you want to use your existing Neon database instead:
+# 1. Remove the 'databases' section above
+# 2. Add DATABASE_URL as a secret environment variable in Render Dashboard
+#    using your Neon connection string from .env

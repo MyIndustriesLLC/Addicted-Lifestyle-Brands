@@ -1,6 +1,13 @@
 node_modules
-dist
+
 .DS_Store
 server/public
 vite.config.ts.*
 *.tar.gz
+
+# Environment variables (contains secrets - NEVER commit)
+.env
+.env.*
+!.env.example
+client/.env
+client/.env.*

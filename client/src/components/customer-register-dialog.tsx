@@ -133,7 +133,7 @@ export function CustomerRegisterDialog({ open, onOpenChange, onSuccess }: Custom
   if (showSeedPhrase) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-lg">
           <DialogHeader>
             <div className="mx-auto w-12 h-12 rounded-full bg-chart-3/10 flex items-center justify-center mb-2">
               <CheckCircle2 className="w-6 h-6 text-chart-3" />
@@ -146,7 +146,7 @@ export function CustomerRegisterDialog({ open, onOpenChange, onSuccess }: Custom
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 mt-4">
+          <div className="space-y-3 sm:space-y-4 mt-4">
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
               <AlertTitle>Critical: Save Your Seed Phrase</AlertTitle>
@@ -158,15 +158,15 @@ export function CustomerRegisterDialog({ open, onOpenChange, onSuccess }: Custom
 
             <div className="space-y-2">
               <Label>Your XRP Wallet Address</Label>
-              <div className="p-3 bg-muted rounded-md font-mono text-sm break-all">
+              <div className="p-2.5 sm:p-3 bg-muted rounded-md font-mono text-xs sm:text-sm break-all">
                 {xrpAddress}
               </div>
             </div>
 
             <div className="space-y-2">
               <Label>Your 24-Word Seed Phrase</Label>
-              <div className="p-4 bg-muted rounded-md border-2 border-destructive/50">
-                <p className="font-mono text-sm leading-relaxed break-words">
+              <div className="p-3 sm:p-4 bg-muted rounded-md border-2 border-destructive/50">
+                <p className="font-mono text-xs sm:text-sm leading-relaxed break-words">
                   {seedPhrase}
                 </p>
               </div>
@@ -192,9 +192,9 @@ export function CustomerRegisterDialog({ open, onOpenChange, onSuccess }: Custom
             </div>
 
             <Alert>
-              <AlertDescription className="text-xs space-y-2">
+              <AlertDescription className="text-xs space-y-1.5 sm:space-y-2">
                 <p className="font-semibold">⚠️ Security Checklist:</p>
-                <ul className="list-disc list-inside space-y-1">
+                <ul className="list-disc list-inside space-y-0.5 sm:space-y-1">
                   <li>Write down your seed phrase on paper</li>
                   <li>Store it in a secure location (safe, vault)</li>
                   <li>Never share it with anyone</li>
@@ -205,7 +205,7 @@ export function CustomerRegisterDialog({ open, onOpenChange, onSuccess }: Custom
 
             <Button
               onClick={handleConfirmSeedPhrase}
-              className="w-full min-h-11"
+              className="w-full"
               data-testid="button-confirm-seed"
             >
               I've Saved My Seed Phrase - Continue
@@ -218,7 +218,7 @@ export function CustomerRegisterDialog({ open, onOpenChange, onSuccess }: Custom
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-md">
         <DialogHeader>
           <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">
             <UserPlus className="w-6 h-6 text-primary" />
@@ -233,7 +233,7 @@ export function CustomerRegisterDialog({ open, onOpenChange, onSuccess }: Custom
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={showLogin ? handleLogin : handleRegister} className="space-y-4 mt-4">
+        <form onSubmit={showLogin ? handleLogin : handleRegister} className="space-y-3 sm:space-y-4 mt-4">
           {!showLogin && (
             <div className="space-y-2">
               <Label htmlFor="name">Name *</Label>
@@ -244,7 +244,7 @@ export function CustomerRegisterDialog({ open, onOpenChange, onSuccess }: Custom
                   placeholder="Your name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="pl-10 h-11"
+                  className="pl-10"
                   required
                   data-testid="input-register-name"
                 />
@@ -262,7 +262,7 @@ export function CustomerRegisterDialog({ open, onOpenChange, onSuccess }: Custom
                 placeholder="you@example.com"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="pl-10 h-11"
+                className="pl-10"
                 required
                 data-testid="input-register-email"
               />
@@ -279,7 +279,7 @@ export function CustomerRegisterDialog({ open, onOpenChange, onSuccess }: Custom
                 placeholder="••••••••"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="pl-10 h-11"
+                className="pl-10"
                 required
                 data-testid="input-register-password"
               />
@@ -296,7 +296,7 @@ export function CustomerRegisterDialog({ open, onOpenChange, onSuccess }: Custom
 
           <Button
             type="submit"
-            className="w-full min-h-11"
+            className="w-full"
             disabled={isRegistering}
             data-testid="button-register-submit"
           >

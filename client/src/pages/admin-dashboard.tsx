@@ -3,18 +3,20 @@ import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { LogOut, Users, Package, UserCog, BarChart3 } from "lucide-react";
+import { LogOut, Users, Package, UserCog, BarChart3, Heart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { CustomersTab } from "@/components/admin/customers-tab";
 import { ProductsTab } from "@/components/admin/products-tab";
 import { EmployeesTab } from "@/components/admin/employees-tab";
 import { MetricsTab } from "@/components/admin/metrics-tab";
+import { EngagementTab } from "@/components/admin/engagement-tab";
+import type { AuthStatusResponse } from "@/types/api";
 
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
-  const { data: authStatus } = useQuery({
+  const { data: authStatus } = useQuery<AuthStatusResponse>({
     queryKey: ["/api/admin/check"],
   });
 
@@ -72,10 +74,14 @@ export default function AdminDashboard() {
 
       <main className="flex-1 container mx-auto px-3 sm:px-4 py-4 sm:py-6 md:py-8 overflow-y-auto">
         <Tabs defaultValue="metrics" className="space-y-4 sm:space-y-6">
-          <TabsList className="grid w-full grid-cols-4 h-auto">
+          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-5 h-auto">
             <TabsTrigger value="metrics" data-testid="tab-metrics" className="text-xs sm:text-sm flex-col sm:flex-row gap-1 sm:gap-2 py-2">
               <BarChart3 className="w-3 h-3 sm:w-4 sm:h-4" />
               <span>Metrics</span>
+            </TabsTrigger>
+            <TabsTrigger value="engagement" data-testid="tab-engagement" className="text-xs sm:text-sm flex-col sm:flex-row gap-1 sm:gap-2 py-2">
+              <Heart className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span>Engagement</span>
             </TabsTrigger>
             <TabsTrigger value="customers" data-testid="tab-customers" className="text-xs sm:text-sm flex-col sm:flex-row gap-1 sm:gap-2 py-2">
               <Users className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -93,6 +99,10 @@ export default function AdminDashboard() {
 
           <TabsContent value="metrics" className="space-y-4">
             <MetricsTab />
+          </TabsContent>
+
+          <TabsContent value="engagement" className="space-y-4">
+            <EngagementTab />
           </TabsContent>
 
           <TabsContent value="customers" className="space-y-4">

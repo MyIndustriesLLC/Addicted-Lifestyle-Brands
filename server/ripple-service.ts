@@ -4,7 +4,11 @@ interface MintNFTParams {
   barcodeId: string;
   productName: string;
   productId: string;
-  purchaseNumber?: number;
+  purchaseNumber: number;
+  totalSold: number;
+  collectionName: string;
+  customerName: string;
+  customerWallet?: string;
 }
 
 interface MintNFTResult {
@@ -75,10 +79,17 @@ export class RippleService {
 
       const uri = convertStringToHex(
         JSON.stringify({
-          name: params.productName,
+          product_name: params.productName,
+          product_id: params.productId,
+          sale_number: params.purchaseNumber,
+          total_sold: params.totalSold,
+          collection_name: params.collectionName,
           barcode: params.barcodeId,
-          productId: params.productId,
-          purchaseNumber: params.purchaseNumber,
+          original_owner: params.customerName,
+          original_wallet: params.customerWallet || "Unclaimed",
+          minted_at: new Date().toISOString(),
+          issuer: this.wallet?.address || "Unknown",
+          network: "XRP Ledger Testnet",
         })
       );
 
@@ -139,6 +150,67 @@ export class RippleService {
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
+      };
+    } finally {
+      await this.disconnect();
+    }
+  }
+
+  getIssuerAddress(): string {
+    if (!this.wallet) {
+      return "Not initialized";
+    }
+    return this.wallet.address;
+  }
+
+  async getNFTDetails(tokenId: string): Promise<any> {
+    try {
+      await this.connect();
+
+      // Query NFTs from the issuer account to find this specific token
+      const nfts = await this.client.request({
+        command: 'account_nfts',
+        account: this.wallet!.address,
+      });
+
+      // Find the specific NFT by token ID
+      const nft = nfts.result.account_nfts.find(
+        (n: any) => n.NFTokenID === tokenId
+      );
+
+      if (!nft) {
+        return {
+          success: false,
+          error: 'NFT not found in issuer account',
+        };
+      }
+
+      // Decode the URI to get metadata
+      let metadata = {};
+      if (nft.URI) {
+        try {
+          const decodedUri = Buffer.from(nft.URI, 'hex').toString('utf8');
+          metadata = JSON.parse(decodedUri);
+        } catch (e) {
+          console.error('Failed to decode NFT metadata:', e);
+        }
+      }
+
+      return {
+        success: true,
+        tokenId: tokenId,
+        issuer: nft.Issuer || this.wallet!.address,
+        owner: this.wallet!.address, // Currently in company wallet
+        metadata,
+        flags: nft.Flags,
+        transferFee: nft.TransferFee,
+        sequence: nft.nft_serial || 0,
+      };
+    } catch (error) {
+      console.error('Failed to get NFT details:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to retrieve NFT',
       };
     } finally {
       await this.disconnect();

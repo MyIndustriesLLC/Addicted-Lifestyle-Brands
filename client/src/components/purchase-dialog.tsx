@@ -81,7 +81,7 @@ export function PurchaseDialog({ product, open, onOpenChange, customerWallet }: 
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent data-testid="dialog-purchase">
+      <DialogContent data-testid="dialog-purchase" className="max-w-[calc(100%-2rem)] sm:max-w-lg">
         {purchaseComplete ? (
           <div className="text-center py-6">
             <div className="w-16 h-16 bg-chart-3/20 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -92,7 +92,7 @@ export function PurchaseDialog({ product, open, onOpenChange, customerWallet }: 
               Your T-shirt NFT has been minted on the Ripple network
             </DialogDescription>
             
-            <div className="bg-muted rounded-md p-4 space-y-3 text-left mb-6">
+            <div className="bg-muted rounded-md p-3 sm:p-4 space-y-3 text-left mb-6">
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Unique Barcode ID</p>
                 <p className="font-mono text-sm break-all" data-testid="text-unique-barcode">
@@ -138,11 +138,11 @@ export function PurchaseDialog({ product, open, onOpenChange, customerWallet }: 
               </DialogDescription>
             </DialogHeader>
 
-            <form onSubmit={handlePurchase} className="space-y-6 mt-4">
-              <div className="bg-muted rounded-md p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Price</span>
-                  <span className="text-lg font-display font-bold" data-testid="text-purchase-price">
+            <form onSubmit={handlePurchase} className="space-y-4 sm:space-y-6 mt-4">
+              <div className="bg-muted rounded-md p-3 sm:p-4 space-y-2">
+                <div className="flex items-center justify-between text-sm sm:text-base">
+                  <span className="text-muted-foreground">Price</span>
+                  <span className="text-lg sm:text-xl font-display font-bold" data-testid="text-purchase-price">
                     {product.price} XRP
                   </span>
                 </div>
@@ -168,7 +168,7 @@ export function PurchaseDialog({ product, open, onOpenChange, customerWallet }: 
                   value={walletAddress}
                   onChange={(e) => setWalletAddress(e.target.value)}
                   required
-                  className="font-mono text-sm"
+                  className="font-mono text-sm h-12"
                   data-testid="input-wallet-address"
                 />
                 <p className="text-xs text-muted-foreground">

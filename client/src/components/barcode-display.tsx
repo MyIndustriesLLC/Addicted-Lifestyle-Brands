@@ -1,6 +1,9 @@
 import { useEffect, useRef } from "react";
 import JsBarcode from "jsbarcode";
 import { Card } from "@/components/ui/card";
+import { QRCode } from "qrcode";
+import { ScanQrCode } from "lucide-react";
+
 
 interface BarcodeDisplayProps {
   value: string;

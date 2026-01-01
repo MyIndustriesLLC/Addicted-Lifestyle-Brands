@@ -6,9 +6,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Header } from "@/components/header";
 import Home from "@/pages/home";
+import Feed from "@/pages/feed";
 import Admin from "@/pages/admin";
 import AdminLogin from "@/pages/admin-login";
 import AdminDashboard from "@/pages/admin-dashboard";
+import VerifyNFT from "@/pages/verify-nft";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -18,6 +20,9 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/feed" component={Feed} />
+      <Route path="/verify/:tokenId" component={VerifyNFT} />
+      <Route path="/verify" component={VerifyNFT} />
       <Route path="/admin" component={Admin} />
       <Route path="/admin-login" component={AdminLogin} />
       <Route path="/admin-dashboard" component={AdminDashboard} />

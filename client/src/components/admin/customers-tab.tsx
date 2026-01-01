@@ -24,10 +24,11 @@ import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Customer } from "@shared/schema";
+import type { AdminCustomer } from "@/types/api";
 
 export function CustomersTab() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [editingCustomer, setEditingCustomer] = useState<AdminCustomer | null>(null);
   const [formData, setFormData] = useState({
     walletAddress: "",
     email: "",
@@ -35,7 +36,7 @@ export function CustomersTab() {
   });
   const { toast } = useToast();
 
-  const { data: customers = [] } = useQuery<Customer[]>({
+  const { data: customers = [] } = useQuery<AdminCustomer[]>({
     queryKey: ["/api/customers"],
   });
 
@@ -80,11 +81,11 @@ export function CustomersTab() {
     },
   });
 
-  const handleOpenDialog = (customer?: Customer) => {
+  const handleOpenDialog = (customer?: AdminCustomer) => {
     if (customer) {
       setEditingCustomer(customer);
       setFormData({
-        walletAddress: customer.walletAddress,
+        walletAddress: customer.walletAddress || "",
         email: customer.email || "",
         name: customer.name || "",
       });
@@ -142,7 +143,7 @@ export function CustomersTab() {
                 <TableRow key={customer.id}>
                   <TableCell>{customer.name || "-"}</TableCell>
                   <TableCell>{customer.email || "-"}</TableCell>
-                  <TableCell className="font-mono text-sm">{customer.walletAddress}</TableCell>
+                  <TableCell className="font-mono text-sm">{customer.walletAddress || "-"}</TableCell>
                   <TableCell>{customer.totalPurchases}</TableCell>
                   <TableCell>{customer.totalSpent} XRP</TableCell>
                   <TableCell className="text-right space-x-2">

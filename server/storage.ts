@@ -1,7 +1,7 @@
-import { 
-  type Product, 
-  type InsertProduct, 
-  type NFT, 
+import {
+  type Product,
+  type InsertProduct,
+  type NFT,
   type InsertNFT,
   type Transaction,
   type InsertTransaction,
@@ -14,8 +14,16 @@ import {
   type ConversionTransaction,
   type InsertConversionTransaction,
   type Employee,
-  type InsertEmployee 
-} from "@shared/schema";
+  type InsertEmployee,
+  type Post,
+  type InsertPost,
+  type PostLike,
+  type InsertPostLike,
+  type Comment,
+  type InsertComment,
+  type Follow,
+  type InsertFollow,
+} from "../shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -33,6 +41,7 @@ export interface IStorage {
   createNFT(nft: InsertNFT): Promise<NFT>;
   getNFT(id: string): Promise<NFT | undefined>;
   getNFTByProductId(productId: string): Promise<NFT | undefined>;
+  getNFTByTokenId(tokenId: string): Promise<NFT | undefined>;
   updateNFT(id: string, updates: Partial<NFT>): Promise<void>;
 
   // Transaction operations
@@ -75,6 +84,39 @@ export interface IStorage {
   getAllEmployees(): Promise<Employee[]>;
   updateEmployee(id: string, updates: Partial<Employee>): Promise<void>;
   deleteEmployee(id: string): Promise<void>;
+
+  // Post operations
+  createPost(post: InsertPost): Promise<Post>;
+  getPost(id: string): Promise<Post | undefined>;
+  getAllPosts(limit?: number, offset?: number): Promise<Post[]>;
+  getPostsByCustomerId(customerId: string): Promise<Post[]>;
+  getFollowingFeed(customerId: string, limit?: number): Promise<Post[]>;
+  deletePost(id: string): Promise<void>;
+  incrementPostLikes(id: string): Promise<void>;
+  decrementPostLikes(id: string): Promise<void>;
+  incrementPostComments(id: string): Promise<void>;
+
+  // Post Like operations
+  createPostLike(postId: string, customerId: string): Promise<void>;
+  deletePostLike(postId: string, customerId: string): Promise<void>;
+  getPostLike(postId: string, customerId: string): Promise<boolean>;
+
+  // Comment operations
+  createComment(comment: InsertComment): Promise<Comment>;
+  getCommentsByPostId(postId: string): Promise<Comment[]>;
+  deleteComment(id: string): Promise<void>;
+
+  // Follow operations
+  createFollow(followerId: string, followingId: string): Promise<void>;
+  deleteFollow(followerId: string, followingId: string): Promise<void>;
+  getFollowers(customerId: string): Promise<Customer[]>;
+  getFollowing(customerId: string): Promise<Customer[]>;
+  isFollowing(followerId: string, followingId: string): Promise<boolean>;
+
+  // Points & Level operations
+  addPoints(customerId: string, points: number): Promise<void>;
+  calculateLevel(points: number): number;
+  updateCustomerLevel(customerId: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -86,6 +128,10 @@ export class MemStorage implements IStorage {
   private linkedWallets: Map<string, LinkedWallet>;
   private conversionTransactions: Map<string, ConversionTransaction>;
   private employees: Map<string, Employee>;
+  private posts: Map<string, Post>;
+  private postLikes: Map<string, { postId: string; customerId: string }>;
+  private comments: Map<string, Comment>;
+  private follows: Map<string, { followerId: string; followingId: string }>;
 
   constructor() {
     this.products = new Map();
@@ -96,17 +142,37 @@ export class MemStorage implements IStorage {
     this.linkedWallets = new Map();
     this.conversionTransactions = new Map();
     this.employees = new Map();
+    this.posts = new Map();
+    this.postLikes = new Map();
+    this.comments = new Map();
+    this.follows = new Map();
+  }
+
+  reset(): void {
+    this.products.clear();
+    this.nfts.clear();
+    this.transactions.clear();
+    this.customers.clear();
+    this.wallets.clear();
+    this.linkedWallets.clear();
+    this.conversionTransactions.clear();
+    this.employees.clear();
+    this.posts.clear();
+    this.postLikes.clear();
+    this.comments.clear();
+    this.follows.clear();
   }
 
   // Product operations
   async createProduct(insertProduct: InsertProduct): Promise<Product> {
     const id = randomUUID();
-    const product: Product = { 
+    const product: Product = {
       ...insertProduct,
       description: insertProduct.description ?? null,
       nftStatus: insertProduct.nftStatus ?? "available",
       salesCount: insertProduct.salesCount ?? "0",
       inventoryLimit: insertProduct.inventoryLimit ?? "500",
+      levelRequired: insertProduct.levelRequired ?? null,
       id,
       createdAt: new Date()
     };
@@ -190,6 +256,12 @@ export class MemStorage implements IStorage {
     );
   }
 
+  async getNFTByTokenId(tokenId: string): Promise<NFT | undefined> {
+    return Array.from(this.nfts.values()).find(
+      (nft) => nft.tokenId === tokenId
+    );
+  }
+
   async updateNFT(id: string, updates: Partial<NFT>): Promise<void> {
     const nft = this.nfts.get(id);
     if (nft) {
@@ -201,12 +273,16 @@ export class MemStorage implements IStorage {
   // Transaction operations
   async createTransaction(insertTransaction: InsertTransaction): Promise<Transaction> {
     const id = randomUUID();
-    const transaction: Transaction = { 
+    const transaction: Transaction = {
       ...insertTransaction,
       status: insertTransaction.status ?? "pending",
       nftId: insertTransaction.nftId ?? null,
       txHash: insertTransaction.txHash ?? null,
       purchaseNumber: insertTransaction.purchaseNumber ?? null,
+      printfulOrderId: null,
+      printfulStatus: null,
+      printfulFileId: null,
+      emailSent: null,
       id,
       createdAt: new Date()
     };
@@ -237,6 +313,11 @@ export class MemStorage implements IStorage {
       ...insertCustomer,
       totalPurchases: "0",
       totalSpent: "0",
+      points: "0",
+      level: "1",
+      followersCount: "0",
+      followingCount: "0",
+      level100RewardClaimed: null,
       id,
       createdAt: new Date()
     };
@@ -406,6 +487,280 @@ export class MemStorage implements IStorage {
 
   async deleteEmployee(id: string): Promise<void> {
     this.employees.delete(id);
+  }
+
+  // Post operations
+  async createPost(insertPost: InsertPost): Promise<Post> {
+    const id = randomUUID();
+    const post: Post = {
+      ...insertPost,
+      caption: insertPost.caption ?? null,
+      likesCount: "0",
+      commentsCount: "0",
+      id,
+      createdAt: new Date()
+    };
+    this.posts.set(id, post);
+    return post;
+  }
+
+  async getPost(id: string): Promise<Post | undefined> {
+    return this.posts.get(id);
+  }
+
+  async getAllPosts(limit: number = 20, offset: number = 0): Promise<Post[]> {
+    const allPosts = Array.from(this.posts.values());
+    // Sort by createdAt descending (most recent first)
+    allPosts.sort((a, b) => {
+      const dateA = a.createdAt ? a.createdAt.getTime() : 0;
+      const dateB = b.createdAt ? b.createdAt.getTime() : 0;
+      return dateB - dateA;
+    });
+    return allPosts.slice(offset, offset + limit);
+  }
+
+  async getPostsByCustomerId(customerId: string): Promise<Post[]> {
+    const posts = Array.from(this.posts.values()).filter(
+      (post) => post.customerId === customerId
+    );
+    // Sort by createdAt descending
+    posts.sort((a, b) => {
+      const dateA = a.createdAt ? a.createdAt.getTime() : 0;
+      const dateB = b.createdAt ? b.createdAt.getTime() : 0;
+      return dateB - dateA;
+    });
+    return posts;
+  }
+
+  async getFollowingFeed(customerId: string, limit: number = 20): Promise<Post[]> {
+    // Get all users this customer is following
+    const following = Array.from(this.follows.values())
+      .filter((follow) => follow.followerId === customerId)
+      .map((follow) => follow.followingId);
+
+    // Get posts from followed users
+    const posts = Array.from(this.posts.values()).filter((post) =>
+      following.includes(post.customerId)
+    );
+
+    // Sort by createdAt descending
+    posts.sort((a, b) => {
+      const dateA = a.createdAt ? a.createdAt.getTime() : 0;
+      const dateB = b.createdAt ? b.createdAt.getTime() : 0;
+      return dateB - dateA;
+    });
+
+    return posts.slice(0, limit);
+  }
+
+  async deletePost(id: string): Promise<void> {
+    this.posts.delete(id);
+    // Also delete associated likes and comments
+    Array.from(this.postLikes.entries()).forEach(([likeId, like]) => {
+      if (like.postId === id) {
+        this.postLikes.delete(likeId);
+      }
+    });
+    Array.from(this.comments.values()).forEach((comment) => {
+      if (comment.postId === id) {
+        this.comments.delete(comment.id);
+      }
+    });
+  }
+
+  async incrementPostLikes(id: string): Promise<void> {
+    const post = this.posts.get(id);
+    if (post) {
+      const currentLikes = parseInt(post.likesCount);
+      post.likesCount = (currentLikes + 1).toString();
+      this.posts.set(id, post);
+    }
+  }
+
+  async decrementPostLikes(id: string): Promise<void> {
+    const post = this.posts.get(id);
+    if (post) {
+      const currentLikes = parseInt(post.likesCount);
+      post.likesCount = Math.max(0, currentLikes - 1).toString();
+      this.posts.set(id, post);
+    }
+  }
+
+  async incrementPostComments(id: string): Promise<void> {
+    const post = this.posts.get(id);
+    if (post) {
+      const currentComments = parseInt(post.commentsCount);
+      post.commentsCount = (currentComments + 1).toString();
+      this.posts.set(id, post);
+    }
+  }
+
+  // Post Like operations
+  async createPostLike(postId: string, customerId: string): Promise<void> {
+    const id = randomUUID();
+    this.postLikes.set(id, { postId, customerId });
+  }
+
+  async deletePostLike(postId: string, customerId: string): Promise<void> {
+    Array.from(this.postLikes.entries()).forEach(([id, like]) => {
+      if (like.postId === postId && like.customerId === customerId) {
+        this.postLikes.delete(id);
+      }
+    });
+  }
+
+  async getPostLike(postId: string, customerId: string): Promise<boolean> {
+    return Array.from(this.postLikes.values()).some(
+      (like) => like.postId === postId && like.customerId === customerId
+    );
+  }
+
+  // Comment operations
+  async createComment(insertComment: InsertComment): Promise<Comment> {
+    const id = randomUUID();
+    const comment: Comment = {
+      ...insertComment,
+      id,
+      createdAt: new Date()
+    };
+    this.comments.set(id, comment);
+    return comment;
+  }
+
+  async getCommentsByPostId(postId: string): Promise<Comment[]> {
+    const comments = Array.from(this.comments.values()).filter(
+      (comment) => comment.postId === postId
+    );
+    // Sort by createdAt ascending (oldest first)
+    comments.sort((a, b) => {
+      const dateA = a.createdAt ? a.createdAt.getTime() : 0;
+      const dateB = b.createdAt ? b.createdAt.getTime() : 0;
+      return dateA - dateB;
+    });
+    return comments;
+  }
+
+  async deleteComment(id: string): Promise<void> {
+    this.comments.delete(id);
+  }
+
+  // Follow operations
+  async createFollow(followerId: string, followingId: string): Promise<void> {
+    const id = randomUUID();
+    this.follows.set(id, { followerId, followingId });
+
+    // Update follower/following counts
+    const follower = await this.getCustomer(followerId);
+    const following = await this.getCustomer(followingId);
+
+    if (follower) {
+      const currentFollowing = parseInt(follower.followingCount);
+      await this.updateCustomer(followerId, {
+        followingCount: (currentFollowing + 1).toString()
+      });
+    }
+
+    if (following) {
+      const currentFollowers = parseInt(following.followersCount);
+      await this.updateCustomer(followingId, {
+        followersCount: (currentFollowers + 1).toString()
+      });
+    }
+  }
+
+  async deleteFollow(followerId: string, followingId: string): Promise<void> {
+    Array.from(this.follows.entries()).forEach(([id, follow]) => {
+      if (follow.followerId === followerId && follow.followingId === followingId) {
+        this.follows.delete(id);
+      }
+    });
+
+    // Update follower/following counts
+    const follower = await this.getCustomer(followerId);
+    const following = await this.getCustomer(followingId);
+
+    if (follower) {
+      const currentFollowing = parseInt(follower.followingCount);
+      await this.updateCustomer(followerId, {
+        followingCount: Math.max(0, currentFollowing - 1).toString()
+      });
+    }
+
+    if (following) {
+      const currentFollowers = parseInt(following.followersCount);
+      await this.updateCustomer(followingId, {
+        followersCount: Math.max(0, currentFollowers - 1).toString()
+      });
+    }
+  }
+
+  async getFollowers(customerId: string): Promise<Customer[]> {
+    const followerIds = Array.from(this.follows.values())
+      .filter((follow) => follow.followingId === customerId)
+      .map((follow) => follow.followerId);
+
+    const followers: Customer[] = [];
+    for (const id of followerIds) {
+      const customer = await this.getCustomer(id);
+      if (customer) {
+        followers.push(customer);
+      }
+    }
+    return followers;
+  }
+
+  async getFollowing(customerId: string): Promise<Customer[]> {
+    const followingIds = Array.from(this.follows.values())
+      .filter((follow) => follow.followerId === customerId)
+      .map((follow) => follow.followingId);
+
+    const following: Customer[] = [];
+    for (const id of followingIds) {
+      const customer = await this.getCustomer(id);
+      if (customer) {
+        following.push(customer);
+      }
+    }
+    return following;
+  }
+
+  async isFollowing(followerId: string, followingId: string): Promise<boolean> {
+    return Array.from(this.follows.values()).some(
+      (follow) => follow.followerId === followerId && follow.followingId === followingId
+    );
+  }
+
+  // Points & Level operations
+  calculateLevel(points: number): number {
+    return Math.floor(points / 10) + 1; // 10 points per level
+  }
+
+  async addPoints(customerId: string, points: number): Promise<void> {
+    const customer = await this.getCustomer(customerId);
+    if (!customer) {
+      throw new Error("Customer not found");
+    }
+
+    const currentPoints = parseInt(customer.points);
+    const newPoints = Math.max(0, currentPoints + points); // Don't allow negative points
+
+    await this.updateCustomer(customerId, {
+      points: newPoints.toString()
+    });
+  }
+
+  async updateCustomerLevel(customerId: string): Promise<void> {
+    const customer = await this.getCustomer(customerId);
+    if (!customer) {
+      throw new Error("Customer not found");
+    }
+
+    const points = parseInt(customer.points);
+    const newLevel = this.calculateLevel(points);
+
+    await this.updateCustomer(customerId, {
+      level: newLevel.toString()
+    });
   }
 }
 
