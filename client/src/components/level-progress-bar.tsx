@@ -8,14 +8,27 @@ interface LevelProgressBarProps {
   showDetails?: boolean;
 }
 
+// Helper function to calculate points needed for a specific level
+// Matches server-side logic: exponential progression with 50% increase per level
+function calculatePointsForLevel(level: number): number {
+  if (level <= 1) return 0;
+  return Math.floor(200 * (Math.pow(1.5, level - 1) - 1));
+}
+
 export function LevelProgressBar({ points, level, showDetails = true }: LevelProgressBarProps) {
   const currentPoints = typeof points === "string" ? parseInt(points) : points;
   const currentLevel = typeof level === "string" ? parseInt(level) : level;
 
-  // 10 points per level
-  const pointsInCurrentLevel = currentPoints % 10;
-  const progress = (pointsInCurrentLevel / 10) * 100;
-  const pointsToNextLevel = 10 - pointsInCurrentLevel;
+  // Exponential progression: each level requires 50% more points than previous
+  // Level 1: 0-99 points (100 points needed)
+  // Level 2: 100-249 points (150 points needed)
+  // Level 3: 250-474 points (225 points needed)
+  const pointsForCurrentLevel = calculatePointsForLevel(currentLevel);
+  const pointsForNextLevel = calculatePointsForLevel(currentLevel + 1);
+  const pointsNeededForLevel = pointsForNextLevel - pointsForCurrentLevel;
+  const pointsInCurrentLevel = currentPoints - pointsForCurrentLevel;
+  const progress = (pointsInCurrentLevel / pointsNeededForLevel) * 100;
+  const pointsToNextLevel = pointsForNextLevel - currentPoints;
   const isMaxLevel = currentLevel >= 100;
 
   return (
@@ -27,7 +40,7 @@ export function LevelProgressBar({ points, level, showDetails = true }: LevelPro
         </div>
         {showDetails && !isMaxLevel && (
           <span className="text-muted-foreground">
-            {pointsInCurrentLevel}/10 points
+            {pointsInCurrentLevel}/{pointsNeededForLevel} points
           </span>
         )}
       </div>

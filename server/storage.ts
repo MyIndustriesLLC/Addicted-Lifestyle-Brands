@@ -122,6 +122,8 @@ export interface IStorage {
   // Points & Level operations
   addPoints(customerId: string, points: number): Promise<void>;
   calculateLevel(points: number): number;
+  calculatePointsForLevel(level: number): number;
+  getPointsToNextLevel(currentPoints: number): { currentLevel: number; nextLevel: number; pointsNeeded: number; pointsInCurrentLevel: number };
   updateCustomerLevel(customerId: string): Promise<void>;
 
   // Cart operations
@@ -771,7 +773,39 @@ export class MemStorage implements IStorage {
 
   // Points & Level operations
   calculateLevel(points: number): number {
-    return Math.floor(points / 10) + 1; // 10 points per level
+    // Exponential progression: each level requires 50% more points than previous
+    // Level 1: 0-99 points (100 points needed)
+    // Level 2: 100-249 points (150 points needed)
+    // Level 3: 250-474 points (225 points needed)
+    // Formula: level = 1 + log(points/200 + 1) / log(1.5)
+
+    if (points < 100) return 1;
+
+    const level = 1 + Math.log(points / 200 + 1) / Math.log(1.5);
+    return Math.floor(level);
+  }
+
+  calculatePointsForLevel(level: number): number {
+    // Calculate total points needed to reach a specific level
+    // Formula: points = 200 * (1.5^(level-1) - 1)
+    if (level <= 1) return 0;
+    return Math.floor(200 * (Math.pow(1.5, level - 1) - 1));
+  }
+
+  getPointsToNextLevel(currentPoints: number): { currentLevel: number; nextLevel: number; pointsNeeded: number; pointsInCurrentLevel: number } {
+    const currentLevel = this.calculateLevel(currentPoints);
+    const nextLevel = currentLevel + 1;
+    const pointsForNextLevel = this.calculatePointsForLevel(nextLevel);
+    const pointsForCurrentLevel = this.calculatePointsForLevel(currentLevel);
+    const pointsNeeded = pointsForNextLevel - currentPoints;
+    const pointsInCurrentLevel = currentPoints - pointsForCurrentLevel;
+
+    return {
+      currentLevel,
+      nextLevel,
+      pointsNeeded,
+      pointsInCurrentLevel
+    };
   }
 
   async addPoints(customerId: string, points: number): Promise<void> {
