@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import {
   Sheet,
   SheetContent,
@@ -45,6 +46,7 @@ export function ShoppingCart() {
   } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
 
   const { data: cartData, isLoading } = useQuery<CartData>({
     queryKey: ["/api/cart"],
@@ -290,7 +292,14 @@ export function ShoppingCart() {
               </div>
             </div>
 
-            <Button className="w-full" size="lg">
+            <Button
+              className="w-full"
+              size="lg"
+              onClick={() => {
+                setOpen(false);
+                setLocation("/checkout");
+              }}
+            >
               Proceed to Checkout
             </Button>
           </div>

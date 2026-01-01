@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Header } from "@/components/header";
 import Home from "@/pages/home";
 import Feed from "@/pages/feed";
+import Checkout from "@/pages/checkout";
 import Admin from "@/pages/admin";
 import AdminLogin from "@/pages/admin-login";
 import AdminDashboard from "@/pages/admin-dashboard";
@@ -22,6 +23,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/feed" component={Feed} />
+      <Route path="/checkout" component={Checkout} />
       <Route path="/verify/:tokenId" component={VerifyNFT} />
       <Route path="/verify" component={VerifyNFT} />
       <Route path="/blockchain/view/:tokenId" component={BlockchainViewer} />

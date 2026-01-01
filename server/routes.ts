@@ -961,6 +961,287 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Process checkout - Mint NFTs, create Printful orders, send emails
+  app.post("/api/checkout/process", async (req, res) => {
+    if (!req.session.customerId) {
+      return res.status(401).json({ error: "Unauthorized - Please log in" });
+    }
+
+    try {
+      const { shippingAddress, couponCode } = req.body;
+
+      // Validate shipping address
+      if (!shippingAddress || !shippingAddress.name || !shippingAddress.address1 || !shippingAddress.city || !shippingAddress.stateCode || !shippingAddress.zip) {
+        return res.status(400).json({ error: "Invalid shipping address" });
+      }
+
+      // Get customer
+      const customer = await storage.getCustomer(req.session.customerId);
+      if (!customer) {
+        return res.status(404).json({ error: "Customer not found" });
+      }
+
+      // Get cart items
+      const cartItems = await storage.getCartItems(req.session.customerId);
+      if (cartItems.length === 0) {
+        return res.status(400).json({ error: "Cart is empty" });
+      }
+
+      // Calculate cart total
+      const { subtotal } = await storage.getCartTotal(req.session.customerId);
+
+      // Validate and apply coupon if provided
+      let discountAmount = 0;
+      let appliedCoupon = null;
+      if (couponCode) {
+        const validation = await storage.validateCoupon(couponCode, req.session.customerId, subtotal);
+        if (validation.valid && validation.coupon && validation.discountAmount) {
+          discountAmount = validation.discountAmount;
+          appliedCoupon = validation.coupon;
+        }
+      }
+
+      const total = Math.max(0, subtotal - discountAmount);
+
+      // Get or create wallet for customer
+      let wallet = await storage.getWalletByCustomerId(req.session.customerId);
+      if (!wallet) {
+        const walletData = await rippleService.createWallet();
+        wallet = await storage.createWallet({
+          customerId: req.session.customerId,
+          xrpAddress: walletData.address,
+          encryptedSeedPhrase: walletData.seed,
+        });
+      }
+
+      const orderIds: string[] = [];
+      const failedItems: string[] = [];
+
+      // Process each cart item
+      for (const cartItem of cartItems) {
+        try {
+          const product = await storage.getProduct(cartItem.productId);
+          if (!product) {
+            failedItems.push(`Product not found: ${cartItem.productId}`);
+            continue;
+          }
+
+          // Check inventory
+          const inventoryAvailable = await storage.checkInventoryAvailable(product.id);
+          if (!inventoryAvailable) {
+            failedItems.push(`${product.name} is out of stock`);
+            continue;
+          }
+
+          const quantity = parseInt(cartItem.quantity);
+
+          // Process each quantity as separate order (each gets unique NFT)
+          for (let i = 0; i < quantity; i++) {
+            // Increment product sales
+            const purchaseNumber = await storage.incrementProductSales(product.id);
+
+            // Generate unique barcode ID
+            const uniqueBarcodeId = `${product.barcodeId}-${String(purchaseNumber).padStart(4, "0")}`;
+
+            // Create transaction
+            const transaction = await storage.createTransaction({
+              productId: product.id,
+              buyerWallet: wallet.xrpAddress,
+              amount: product.price,
+              status: "pending",
+              uniqueBarcodeId,
+              purchaseNumber: purchaseNumber.toString(),
+            });
+
+            const dateOfPurchase = new Date().toISOString();
+            const currentSalesCount = purchaseNumber - 1;
+
+            // Generate initial QR code (without token ID)
+            const initialQRCode = await qrCodeGenerator.generatePurchaseQRCode({
+              purchase_id: transaction.id,
+              customer_name: customer.name,
+              collection_name: "NFT Streetwear Collection",
+              product_name: product.name,
+              date_of_purchase: dateOfPurchase,
+            });
+
+            // Mint NFT
+            const mintResult = await rippleService.mintNFT({
+              barcodeId: uniqueBarcodeId,
+              productName: product.name,
+              productId: product.id,
+              purchaseNumber,
+              totalSold: currentSalesCount + 1,
+              collectionName: "NFT Streetwear Collection",
+              customerName: customer.name,
+              customerWallet: wallet.xrpAddress,
+              purchaseId: transaction.id,
+              dateOfPurchase,
+              qrCodeImage: initialQRCode,
+            });
+
+            if (!mintResult.success) {
+              failedItems.push(`Failed to mint NFT for ${product.name}: ${mintResult.error}`);
+              await storage.updateTransaction(transaction.id, { status: "failed" });
+              continue;
+            }
+
+            // Generate final QR code with NFT token ID
+            const finalQRCode = await qrCodeGenerator.generatePurchaseQRCodeBuffer({
+              purchase_id: transaction.id,
+              customer_name: customer.name,
+              collection_name: "NFT Streetwear Collection",
+              product_name: product.name,
+              date_of_purchase: dateOfPurchase,
+              nft_token_id: mintResult.tokenId,
+            });
+
+            // Upload QR code to Printful and create order
+            let printfulOrderId = null;
+            let printfulFileId = null;
+
+            if (printfulClient && process.env.PRINTFUL_API_KEY) {
+              try {
+                // Upload QR code file
+                const fileUpload = await printfulClient.uploadFile(
+                  finalQRCode,
+                  `qr-${uniqueBarcodeId}.png`
+                );
+                printfulFileId = fileUpload.id;
+
+                // Create Printful order
+                const printfulOrder = await printfulClient.createOrder({
+                  recipient: {
+                    name: shippingAddress.name,
+                    address1: shippingAddress.address1,
+                    address2: shippingAddress.address2,
+                    city: shippingAddress.city,
+                    state_code: shippingAddress.stateCode,
+                    country_code: shippingAddress.countryCode,
+                    zip: shippingAddress.zip,
+                    phone: shippingAddress.phone,
+                  },
+                  items: [
+                    {
+                      variant_id: 4012, // Men's T-shirt variant
+                      quantity: 1,
+                      files: [
+                        {
+                          type: "default",
+                          url: product.imageUrl,
+                        },
+                        {
+                          type: "left_sleeve",
+                          id: printfulFileId,
+                        },
+                      ],
+                    },
+                  ],
+                });
+
+                printfulOrderId = printfulOrder.id;
+              } catch (printfulError) {
+                console.error("Printful order creation failed:", printfulError);
+                // Continue anyway - we have the NFT minted
+              }
+            }
+
+            // Send email with NFT details
+            if (emailService && process.env.EMAIL_HOST) {
+              try {
+                const qrCodeDataUrl = await qrCodeGenerator.generatePurchaseQRCode({
+                  purchase_id: transaction.id,
+                  customer_name: customer.name,
+                  collection_name: "NFT Streetwear Collection",
+                  product_name: product.name,
+                  date_of_purchase: dateOfPurchase,
+                  nft_token_id: mintResult.tokenId,
+                });
+
+                await emailService.sendNFTDetails({
+                  to: customer.email,
+                  customerName: customer.name,
+                  productName: product.name,
+                  nftTokenId: mintResult.tokenId || "",
+                  transactionHash: mintResult.transactionHash || "",
+                  qrCodeDataUrl,
+                  walletAddress: wallet.xrpAddress,
+                });
+
+                await storage.updateTransaction(transaction.id, {
+                  emailSent: new Date(),
+                });
+              } catch (emailError) {
+                console.error("Email sending failed:", emailError);
+                // Continue anyway - order is successful
+              }
+            }
+
+            // Update transaction with success
+            await storage.updateTransaction(transaction.id, {
+              status: "completed",
+              txHash: mintResult.transactionHash,
+              printfulOrderId: printfulOrderId ? printfulOrderId.toString() : null,
+              printfulFileId: printfulFileId ? printfulFileId.toString() : null,
+            });
+
+            // Award points for purchase
+            await storage.addPoints(req.session.customerId, 25);
+            await storage.updateCustomerLevel(req.session.customerId);
+
+            orderIds.push(transaction.id);
+          }
+        } catch (itemError) {
+          console.error(`Failed to process cart item ${cartItem.id}:`, itemError);
+          failedItems.push(`Failed to process item: ${itemError instanceof Error ? itemError.message : "Unknown error"}`);
+        }
+      }
+
+      // Apply coupon usage if coupon was used
+      if (appliedCoupon && orderIds.length > 0) {
+        try {
+          await storage.applyCoupon(
+            appliedCoupon.id,
+            req.session.customerId,
+            orderIds[0], // Use first order ID
+            discountAmount
+          );
+          await storage.incrementCouponUsage(appliedCoupon.id);
+        } catch (couponError) {
+          console.error("Failed to apply coupon:", couponError);
+        }
+      }
+
+      // Clear cart on success
+      if (orderIds.length > 0) {
+        await storage.clearCart(req.session.customerId);
+      }
+
+      // Return results
+      if (orderIds.length === 0) {
+        return res.status(400).json({
+          error: "All items failed to process",
+          failures: failedItems,
+        });
+      }
+
+      res.json({
+        success: true,
+        orderIds,
+        processedItems: orderIds.length,
+        failedItems: failedItems.length > 0 ? failedItems : undefined,
+        total: total.toFixed(2),
+        discount: discountAmount > 0 ? discountAmount.toFixed(2) : undefined,
+      });
+    } catch (error) {
+      console.error("Checkout processing error:", error);
+      res.status(500).json({
+        error: "Checkout processing failed",
+        message: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
+
   // Admin: Create coupon
   app.post("/api/admin/coupons", requireAdminAuth, async (req, res) => {
     try {
