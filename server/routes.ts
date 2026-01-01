@@ -1655,6 +1655,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================
+  // PUBLIC STATS ENDPOINT
+  // ============================================
+
+  // Get public platform statistics
+  app.get("/api/stats", async (_req, res) => {
+    try {
+      const transactions = await storage.getAllTransactions();
+      const customers = await storage.getAllCustomers();
+
+      const nftsMinted = transactions.filter(t => t.status === "completed").length;
+      const uniqueOwners = customers.length;
+      const verifiedPercentage = nftsMinted > 0 ? 100 : 0;
+
+      res.json({
+        nftsMinted,
+        uniqueOwners,
+        verifiedPercentage
+      });
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+      res.status(500).json({ error: "Failed to fetch stats" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

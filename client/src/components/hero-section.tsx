@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, ShieldCheck } from "lucide-react";
-
+import { useQuery } from "@tanstack/react-query";
+import type { Transaction } from "@shared/schema";
 
 interface HeroSectionProps {
   onShopCollection?: () => void;
@@ -8,6 +9,21 @@ interface HeroSectionProps {
 }
 
 export function HeroSection({ onShopCollection, onLearnMore }: HeroSectionProps) {
+  // Fetch transactions to count NFTs minted
+  const { data: transactions = [] } = useQuery<Transaction[]>({
+    queryKey: ["/api/transactions"],
+  });
+
+  // Fetch customers to count unique owners
+  const { data: customers = [] } = useQuery<{ id: string; walletAddress?: string }[]>({
+    queryKey: ["/api/customers/public"],
+  });
+
+  // Calculate stats
+  const nftsMinted = transactions.filter(t => t.status === "completed").length;
+  const uniqueOwners = customers.length;
+  const verifiedPercentage = nftsMinted > 0 ? 100 : 0;
+
   return (
     <section className="relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-accent/10 to-transparent" />
@@ -55,17 +71,23 @@ export function HeroSection({ onShopCollection, onLearnMore }: HeroSectionProps)
           
           <div className="mt-8 sm:mt-12 flex items-center justify-center gap-4 sm:gap-6 md:gap-8 text-xs sm:text-sm">
             <div className="text-center">
-              <p className="text-xl sm:text-2xl font-display font-bold text-primary" data-testid="text-total-minted">1,247</p>
+              <p className="text-xl sm:text-2xl font-display font-bold text-primary" data-testid="text-total-minted">
+                {nftsMinted.toLocaleString()}
+              </p>
               <p className="text-muted-foreground text-xs sm:text-sm">NFTs Minted</p>
             </div>
             <div className="h-6 sm:h-8 w-px bg-border" />
             <div className="text-center">
-              <p className="text-xl sm:text-2xl font-display font-bold text-primary" data-testid="text-total-owners">892</p>
+              <p className="text-xl sm:text-2xl font-display font-bold text-primary" data-testid="text-total-owners">
+                {uniqueOwners.toLocaleString()}
+              </p>
               <p className="text-muted-foreground text-xs sm:text-sm">Unique Owners</p>
             </div>
             <div className="h-6 sm:h-8 w-px bg-border" />
             <div className="text-center">
-              <p className="text-xl sm:text-2xl font-display font-bold text-primary" data-testid="text-blockchain-verified">100%</p>
+              <p className="text-xl sm:text-2xl font-display font-bold text-primary" data-testid="text-blockchain-verified">
+                {verifiedPercentage}%
+              </p>
               <p className="text-muted-foreground text-xs sm:text-sm">Verified</p>
             </div>
           </div>
