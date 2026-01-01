@@ -197,7 +197,7 @@ export function OrdersTab() {
                         <TableCell className="font-mono text-xs">
                           {transaction.buyerWallet.slice(0, 10)}...
                         </TableCell>
-                        <TableCell>{transaction.amount} XRP</TableCell>
+                        <TableCell>${parseFloat(transaction.amount).toFixed(2)} USD</TableCell>
                         <TableCell>{getStatusBadge(transaction.status)}</TableCell>
                         <TableCell>
                           {transaction.printfulOrderId ? (
@@ -291,7 +291,7 @@ export function OrdersTab() {
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-muted-foreground">Amount</p>
-                  <p className="text-sm font-semibold">{selectedOrder.amount} XRP</p>
+                  <p className="text-sm font-semibold">${parseFloat(selectedOrder.amount).toFixed(2)} USD</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-muted-foreground">Created At</p>
@@ -324,7 +324,7 @@ export function OrdersTab() {
                     <div className="flex-1 space-y-1">
                       <p className="font-medium">{selectedOrder.product.name}</p>
                       <p className="text-sm text-muted-foreground">{selectedOrder.product.description}</p>
-                      <p className="text-sm font-semibold">{selectedOrder.product.price} XRP</p>
+                      <p className="text-sm font-semibold">${parseFloat(selectedOrder.product.price).toFixed(2)} USD</p>
                     </div>
                   </div>
                 </div>

@@ -236,7 +236,6 @@ export default function Home() {
         product={selectedProduct}
         open={purchaseDialogOpen}
         onOpenChange={setPurchaseDialogOpen}
-        customerWallet={customerAuth?.customer?.walletAddress || undefined}
       />
 
       <CustomerRegisterDialog

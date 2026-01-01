@@ -5,8 +5,7 @@ interface NFTEmailData {
   recipientEmail: string;
   recipientName: string;
   nftTokenId: string;
-  nftIssuer: string;
-  walletAddress: string;
+  companyWalletAddress: string; // Company wallet that holds the NFT
   productName: string;
   qrCodeDataUrl: string;
 }
@@ -79,18 +78,18 @@ class EmailService {
               <p>Thank you for your purchase! Your exclusive NFT has been minted on the Ripple network and is ready to be added to your wallet.</p>
 
               <div class="nft-info">
-                <h2>NFT Details</h2>
+                <h2>📋 NFT Details</h2>
                 <div class="info-row">
-                  <div class="label">Token ID:</div>
+                  <div class="label">NFT Token ID:</div>
                   <div class="value">${data.nftTokenId}</div>
                 </div>
                 <div class="info-row">
-                  <div class="label">Issuer Address:</div>
-                  <div class="value">${data.nftIssuer}</div>
+                  <div class="label">Company Wallet (Issuer):</div>
+                  <div class="value">${data.companyWalletAddress}</div>
                 </div>
                 <div class="info-row">
-                  <div class="label">Your Wallet Address:</div>
-                  <div class="value">${data.walletAddress}</div>
+                  <div class="label">Product:</div>
+                  <div class="value">${data.productName}</div>
                 </div>
               </div>
 
@@ -101,17 +100,19 @@ class EmailService {
               </div>
 
               <div class="instructions">
-                <h3>🎁 How to Claim Your NFT</h3>
-                <p><strong>Your NFT is ready and waiting for you!</strong></p>
-                <p>The NFT is currently held in our secure company wallet. When you're ready to claim it:</p>
+                <h3>🎁 How to Import Your NFT to Your Wallet</h3>
+                <p><strong>Your NFT has been minted and is ready to import!</strong></p>
+                <p>The NFT is currently held in our company wallet for safekeeping. To import it into your own XRP wallet:</p>
                 <ol>
-                  <li>Contact us at support@nftstreetw ear.com with your Token ID</li>
-                  <li>Provide your XRP wallet address</li>
-                  <li>We'll transfer the NFT to your wallet within 24 hours</li>
-                  <li>OR scan the QR code on your ${data.productName} to verify and claim</li>
+                  <li><strong>Open your XRP wallet</strong> (XUMM, Crossmark, Gem Wallet, or any XRP-compatible wallet)</li>
+                  <li><strong>Navigate to "Add NFT"</strong> or "Import NFT Token" section</li>
+                  <li><strong>Enter the Token ID:</strong> ${data.nftTokenId}</li>
+                  <li><strong>Enter the Issuer Address:</strong> ${data.companyWalletAddress}</li>
+                  <li><strong>Confirm</strong> - The NFT will appear in your wallet!</li>
                 </ol>
-                <p><strong>Why wait to claim?</strong> You can verify the NFT's authenticity anytime by scanning the QR code printed on your product's left sleeve, or by visiting our verification page.</p>
-                <p><strong>Keep this email safe!</strong> It contains your unique NFT Token ID needed for claiming.</p>
+                <p><strong>Important:</strong> Importing the NFT to your wallet allows you to view and verify it. The NFT remains in our company wallet. If you'd like full ownership transferred to your wallet, please contact us at support@nftstreetw ear.com</p>
+                <p><strong>Verify Authenticity:</strong> You can verify your NFT anytime on the XRP Ledger Explorer or by scanning the QR code on your ${data.productName}</p>
+                <p><strong>Keep this email safe!</strong> It contains your unique NFT Token ID.</p>
               </div>
 
               <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
@@ -131,20 +132,30 @@ Your NFT is Ready!
 
 Hi ${data.recipientName},
 
-Thank you for your purchase of ${data.productName}! Your exclusive NFT has been minted on the Ripple network.
+Thank you for your purchase of ${data.productName}! Your exclusive NFT has been minted on the Ripple network and is ready to import.
 
 NFT Details:
 - Token ID: ${data.nftTokenId}
-- Issuer Address: ${data.nftIssuer}
-- Your Wallet Address: ${data.walletAddress}
+- Company Wallet (Issuer): ${data.companyWalletAddress}
+- Product: ${data.productName}
 
-How to Add Your NFT to Your Wallet:
-1. Open your XRP-compatible wallet (e.g., XUMM, Crossmark)
-2. Navigate to the "Add NFT" or "Import NFT" section
-3. Enter the Token ID shown above
-4. Confirm the transaction to add the NFT to your wallet
+How to Import Your NFT to Your Wallet:
 
-Note: This NFT will also be printed on the left sleeve of your ${data.productName}!
+Your NFT has been minted and is ready to import!
+
+The NFT is currently held in our company wallet for safekeeping. To import it into your own XRP wallet:
+
+1. Open your XRP wallet (XUMM, Crossmark, Gem Wallet, or any XRP-compatible wallet)
+2. Navigate to "Add NFT" or "Import NFT Token" section
+3. Enter the Token ID: ${data.nftTokenId}
+4. Enter the Issuer Address: ${data.companyWalletAddress}
+5. Confirm - The NFT will appear in your wallet!
+
+Important: Importing the NFT to your wallet allows you to view and verify it. The NFT remains in our company wallet. If you'd like full ownership transferred to your wallet, please contact us at support@nftstreetw ear.com
+
+Verify Authenticity: You can verify your NFT anytime on the XRP Ledger Explorer or by scanning the QR code on your ${data.productName}
+
+Keep this email safe! It contains your unique NFT Token ID.
 
 If you have any questions, please contact our support team.
 

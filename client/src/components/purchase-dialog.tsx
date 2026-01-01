@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -7,77 +7,98 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Loader2, CheckCircle2 } from "lucide-react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { Loader2, CheckCircle2, Mail } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { PayPalButtons, PayPalScriptProvider } from "@paypal/react-paypal-js";
 import type { Product } from "@shared/schema";
 
 interface PurchaseDialogProps {
   product: Product | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  customerWallet?: string;
 }
 
-export function PurchaseDialog({ product, open, onOpenChange, customerWallet }: PurchaseDialogProps) {
-  const [walletAddress, setWalletAddress] = useState(customerWallet || "");
+export function PurchaseDialog({ product, open, onOpenChange }: PurchaseDialogProps) {
   const [purchaseComplete, setPurchaseComplete] = useState(false);
   const [nftData, setNftData] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   const queryClient = useQueryClient();
-
-  // Auto-fill wallet address when customerWallet changes
-  useEffect(() => {
-    if (customerWallet) {
-      setWalletAddress(customerWallet);
-    }
-  }, [customerWallet]);
-
-  const purchaseMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch(`/api/products/${product?.id}/purchase`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ buyerWallet: walletAddress }),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Purchase failed");
-      }
-      
-      return response.json();
-    },
-    onSuccess: (data) => {
-      setNftData({
-        ...data.nft,
-        uniqueBarcodeId: data.uniqueBarcodeId,
-        purchaseNumber: data.purchaseNumber
-      });
-      setPurchaseComplete(true);
-      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-    },
-    onError: (error) => {
-      console.error("Purchase error:", error);
-    },
-  });
 
   const handleClose = () => {
     onOpenChange(false);
     setTimeout(() => {
       setPurchaseComplete(false);
-      setWalletAddress("");
       setNftData(null);
+      setError(null);
+      setIsProcessing(false);
     }, 300);
   };
 
-  const handlePurchase = (e: React.FormEvent) => {
-    e.preventDefault();
-    purchaseMutation.mutate();
+  const handleCreateOrder = async () => {
+    try {
+      const response = await fetch(`/api/products/${product?.id}/paypal/create-order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create order");
+      }
+
+      const data = await response.json();
+      return data.orderId;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create order");
+      throw err;
+    }
+  };
+
+  const handleApprove = async (data: any) => {
+    try {
+      setIsProcessing(true);
+      setError(null);
+
+      const response = await fetch(`/api/products/${product?.id}/paypal/capture-order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: data.orderID }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Payment capture failed");
+      }
+
+      const result = await response.json();
+
+      setNftData({
+        ...result.nft,
+        uniqueBarcodeId: result.uniqueBarcodeId,
+        purchaseNumber: result.purchaseNumber
+      });
+      setPurchaseComplete(true);
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Payment processing failed");
+      setIsProcessing(false);
+    }
+  };
+
+  const handleError = (err: any) => {
+    console.error("PayPal error:", err);
+    setError("Payment failed. Please try again.");
+    setIsProcessing(false);
   };
 
   if (!product) return null;
+
+  const paypalClientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
+
+  if (!paypalClientId) {
+    console.error("PayPal Client ID not configured");
+  }
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -87,11 +108,11 @@ export function PurchaseDialog({ product, open, onOpenChange, customerWallet }: 
             <div className="w-16 h-16 bg-chart-3/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle2 className="h-8 w-8 text-chart-3" />
             </div>
-            <DialogTitle className="text-2xl mb-2">NFT Minted Successfully!</DialogTitle>
+            <DialogTitle className="text-2xl mb-2">Purchase Complete!</DialogTitle>
             <DialogDescription className="mb-6">
-              Your T-shirt NFT has been minted on the Ripple network
+              Your NFT has been minted to our company wallet
             </DialogDescription>
-            
+
             <div className="bg-muted rounded-md p-3 sm:p-4 space-y-3 text-left mb-6">
               <div>
                 <p className="text-xs text-muted-foreground mb-1">Unique Barcode ID</p>
@@ -106,22 +127,31 @@ export function PurchaseDialog({ product, open, onOpenChange, customerWallet }: 
                 </p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Token ID</p>
+                <p className="text-xs text-muted-foreground mb-1">NFT Token ID</p>
                 <p className="font-mono text-sm break-all" data-testid="text-token-id">
                   {nftData?.tokenId || "Pending..."}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Transaction Hash</p>
-                <p className="font-mono text-sm break-all" data-testid="text-tx-hash">
-                  {nftData?.transactionHash || "Pending..."}
+                <p className="text-xs text-muted-foreground mb-1">Status</p>
+                <p className="text-sm" data-testid="text-nft-status">
+                  {nftData?.status || "Pending..."}
                 </p>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Owner Wallet</p>
-                <p className="font-mono text-sm break-all" data-testid="text-owner-wallet">
-                  {walletAddress}
-                </p>
+            </div>
+
+            <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-md p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <Mail className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+                <div className="text-left">
+                  <p className="font-semibold text-sm text-blue-900 dark:text-blue-100 mb-1">
+                    Check Your Email
+                  </p>
+                  <p className="text-xs text-blue-700 dark:text-blue-300">
+                    We've sent you instructions to import your NFT into your XRP wallet (XUMM, Crossmark, Gem Wallet).
+                    The NFT includes your unique Token ID and barcode information.
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -134,16 +164,16 @@ export function PurchaseDialog({ product, open, onOpenChange, customerWallet }: 
             <DialogHeader>
               <DialogTitle className="font-display text-2xl">Purchase {product.name}</DialogTitle>
               <DialogDescription>
-                Complete your purchase and receive an NFT barcode on the Ripple network
+                Pay with PayPal and receive your exclusive NFT
               </DialogDescription>
             </DialogHeader>
 
-            <form onSubmit={handlePurchase} className="space-y-4 sm:space-y-6 mt-4">
+            <div className="space-y-4 sm:space-y-6 mt-4">
               <div className="bg-muted rounded-md p-3 sm:p-4 space-y-2">
                 <div className="flex items-center justify-between text-sm sm:text-base">
                   <span className="text-muted-foreground">Price</span>
                   <span className="text-lg sm:text-xl font-display font-bold" data-testid="text-purchase-price">
-                    {product.price} XRP
+                    ${parseFloat(product.price).toFixed(2)} USD
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -160,58 +190,48 @@ export function PurchaseDialog({ product, open, onOpenChange, customerWallet }: 
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="wallet">Your Ripple Wallet Address</Label>
-                <Input
-                  id="wallet"
-                  placeholder="rN7n7otQDd6FczFgLdhmGHoNC1XRGfKP4xVBd"
-                  value={walletAddress}
-                  onChange={(e) => setWalletAddress(e.target.value)}
-                  required
-                  className="font-mono text-sm h-12"
-                  data-testid="input-wallet-address"
-                />
-                <p className="text-xs text-muted-foreground">
-                  The NFT will be minted and transferred to this address
-                </p>
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full"
-                size="lg"
-                disabled={purchaseMutation.isPending || !walletAddress}
-                data-testid="button-confirm-purchase"
-              >
-                {purchaseMutation.isPending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Minting NFT...
-                  </>
-                ) : (
-                  "Purchase & Mint NFT"
-                )}
-              </Button>
-
-              {purchaseMutation.isError && (
-                <div className="space-y-3">
-                  <p className="text-sm text-destructive text-center" data-testid="text-error-message">
-                    {purchaseMutation.error instanceof Error
-                      ? purchaseMutation.error.message
-                      : "Purchase failed. Please try again."}
+              {isProcessing ? (
+                <div className="flex flex-col items-center justify-center py-8 space-y-3">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="text-sm text-muted-foreground">Processing your payment and minting NFT...</p>
+                </div>
+              ) : paypalClientId ? (
+                <PayPalScriptProvider
+                  options={{
+                    clientId: paypalClientId,
+                    currency: "USD",
+                    intent: "capture",
+                  }}
+                >
+                  <PayPalButtons
+                    style={{
+                      layout: "vertical",
+                      color: "gold",
+                      shape: "rect",
+                      label: "paypal",
+                    }}
+                    createOrder={handleCreateOrder}
+                    onApprove={handleApprove}
+                    onError={handleError}
+                    disabled={isProcessing}
+                  />
+                </PayPalScriptProvider>
+              ) : (
+                <div className="bg-destructive/10 border border-destructive/20 rounded-md p-4 text-center">
+                  <p className="text-sm text-destructive">
+                    PayPal is not configured. Please contact support.
                   </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => purchaseMutation.reset()}
-                    data-testid="button-retry-purchase"
-                  >
-                    Try Again
-                  </Button>
                 </div>
               )}
-            </form>
+
+              {error && (
+                <div className="bg-destructive/10 border border-destructive/20 rounded-md p-4">
+                  <p className="text-sm text-destructive text-center" data-testid="text-error-message">
+                    {error}
+                  </p>
+                </div>
+              )}
+            </div>
           </>
         )}
       </DialogContent>

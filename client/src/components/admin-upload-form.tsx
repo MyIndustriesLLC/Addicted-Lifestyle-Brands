@@ -166,7 +166,7 @@ export function AdminUploadForm() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="price">Price (XRP) *</Label>
+              <Label htmlFor="price">Price (USD) *</Label>
               <Input
                 id="price"
                 type="number"

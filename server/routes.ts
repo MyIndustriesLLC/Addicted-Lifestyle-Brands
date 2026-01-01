@@ -17,6 +17,7 @@ import { qrCodeGenerator } from "./services/qrcode-generator";
 import { imageComposer } from "./services/image-composer";
 import { printfulClient } from "./services/printful-client";
 import { emailService } from "./services/email";
+import { paypalClient } from "./services/paypal-client";
 
 declare module "express-session" {
   interface SessionData {
@@ -90,7 +91,256 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Purchase product and mint NFT
+  // PayPal: Create order for product purchase
+  app.post("/api/products/:id/paypal/create-order", async (req, res) => {
+    try {
+      const product = await storage.getProduct(req.params.id);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Check level requirement
+      if (product.levelRequired && req.session.customerId) {
+        const customer = await storage.getCustomer(req.session.customerId);
+        if (customer) {
+          const customerLevel = parseInt(customer.level);
+          const requiredLevel = parseInt(product.levelRequired);
+          if (customerLevel < requiredLevel) {
+            return res.status(403).json({
+              error: `This product requires Level ${requiredLevel}. You are Level ${customerLevel}.`,
+            });
+          }
+        }
+      }
+
+      // Check inventory
+      const isAvailable = await storage.checkInventoryAvailable(product.id);
+      if (!isAvailable) {
+        return res.status(400).json({ error: "Product sold out - inventory limit reached" });
+      }
+
+      // Create PayPal order
+      const orderData = await paypalClient.createOrder(
+        [{ name: product.name, quantity: 1, price: product.price }],
+        product.price
+      );
+
+      res.json({
+        orderId: orderData.orderId,
+        status: orderData.status
+      });
+    } catch (error) {
+      console.error("PayPal order creation error:", error);
+      res.status(500).json({ error: "Failed to create PayPal order" });
+    }
+  });
+
+  // PayPal: Capture order and mint NFT
+  app.post("/api/products/:id/paypal/capture-order", async (req, res) => {
+    try {
+      const { orderId } = req.body;
+
+      if (!orderId) {
+        return res.status(400).json({ error: "Order ID required" });
+      }
+
+      const product = await storage.getProduct(req.params.id);
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Capture the PayPal payment
+      const captureResult = await paypalClient.captureOrder(orderId);
+
+      if (!captureResult.success) {
+        return res.status(400).json({
+          error: "Payment capture failed",
+          details: captureResult.error
+        });
+      }
+
+      // Verify payment amount matches product price
+      if (parseFloat(captureResult.amount) !== parseFloat(product.price)) {
+        console.error("Payment amount mismatch!");
+        return res.status(400).json({ error: "Payment amount mismatch" });
+      }
+
+      // Check inventory again (race condition protection)
+      const isAvailable = await storage.checkInventoryAvailable(product.id);
+      if (!isAvailable) {
+        // Refund the payment if inventory sold out between order creation and capture
+        await paypalClient.refundPayment(captureResult.transactionId);
+        return res.status(400).json({ error: "Product sold out - payment refunded" });
+      }
+
+      // Generate unique barcode
+      const uniqueBarcodeId = `${product.barcodeId}-${String(parseInt(product.salesCount) + 1).padStart(4, "0")}`;
+
+      // Increment sales count
+      const purchaseNumber = await storage.incrementProductSales(product.id);
+
+      // Get customer details
+      const customer = req.session.customerId
+        ? await storage.getCustomer(req.session.customerId)
+        : null;
+
+      const customerEmail = customer?.email || captureResult.payerEmail;
+      const customerName = customer?.name || captureResult.payerName;
+
+      // Create transaction record with PayPal data
+      const transaction = await storage.createTransaction({
+        productId: product.id,
+        nftId: null,
+        buyerWallet: null, // No customer wallet
+        paypalOrderId: captureResult.orderId,
+        paypalTransactionId: captureResult.transactionId,
+        paypalPayerEmail: captureResult.payerEmail,
+        paypalPayerName: captureResult.payerName,
+        amount: product.price,
+        currency: "USD",
+        paymentProvider: "paypal",
+        status: "completed", // Payment already captured
+        uniqueBarcodeId,
+        purchaseNumber: purchaseNumber.toString(),
+        txHash: null,
+      });
+
+      // Create NFT record
+      const nft = await storage.createNFT({
+        productId: product.id,
+        status: "pending",
+        tokenId: null,
+        ownerWallet: null,
+        transactionHash: null,
+      });
+
+      const dateOfPurchase = new Date().toISOString();
+      const currentSalesCount = parseInt(product.salesCount) || 0;
+
+      // Generate QR code (before minting)
+      const purchaseQRCode = await qrCodeGenerator.generatePurchaseQRCode({
+        purchase_id: transaction.id,
+        customer_name: customerName,
+        collection_name: "NFT Streetwear Collection",
+        product_name: product.name,
+        date_of_purchase: dateOfPurchase,
+      });
+
+      // CRITICAL: Mint NFT to COMPANY wallet, not customer wallet
+      const companyWalletSeed = process.env.COMPANY_XRP_WALLET_SEED;
+      const companyWalletAddress = process.env.COMPANY_XRP_WALLET_ADDRESS;
+
+      if (!companyWalletSeed || !companyWalletAddress) {
+        console.error("Company XRP wallet not configured!");
+        return res.status(500).json({ error: "NFT minting configuration error" });
+      }
+
+      // Mint NFT with company wallet as owner
+      const mintResult = await rippleService.mintNFT({
+        barcodeId: uniqueBarcodeId,
+        productName: product.name,
+        productId: product.id,
+        purchaseNumber,
+        totalSold: currentSalesCount + 1,
+        collectionName: "NFT Streetwear Collection",
+        customerName: customerName,
+        customerWallet: companyWalletAddress, // Mint to company wallet
+        purchaseId: transaction.id,
+        dateOfPurchase,
+        qrCodeImage: purchaseQRCode,
+      });
+
+      if (!mintResult.success) {
+        console.error("NFT minting failed:", mintResult.error);
+        // Continue anyway, send email with error notice
+      }
+
+      // Update NFT with minting details
+      if (mintResult.success) {
+        await storage.updateNFT(nft.id, {
+          tokenId: mintResult.tokenId,
+          ownerWallet: companyWalletAddress, // Company wallet owns it
+          transactionHash: mintResult.transactionHash,
+          status: "minted",
+          mintedAt: new Date(),
+        });
+
+        // Update transaction with NFT ID
+        await storage.updateTransaction(transaction.id, {
+          nftId: nft.id,
+        });
+      }
+
+      // Send email with NFT import instructions
+      await emailService.sendNFTEmail({
+        recipientEmail: customerEmail,
+        recipientName: customerName,
+        nftTokenId: mintResult.tokenId || "Pending",
+        companyWalletAddress: companyWalletAddress,
+        productName: product.name,
+        qrCodeDataUrl: purchaseQRCode,
+      });
+
+      await storage.updateTransactionEmailSent(transaction.id);
+
+      // Award points if customer is logged in
+      if (customer) {
+        await storage.addPoints(customer.id, 25);
+        await storage.updateCustomerLevel(customer.id);
+      }
+
+      res.json({
+        success: true,
+        transaction,
+        nft: {
+          tokenId: mintResult.tokenId,
+          transactionHash: mintResult.transactionHash,
+          ownerWallet: companyWalletAddress,
+          status: mintResult.success ? "minted" : "pending"
+        },
+        uniqueBarcodeId,
+        purchaseNumber
+      });
+
+    } catch (error) {
+      console.error("PayPal capture error:", error);
+      res.status(500).json({ error: "Payment capture failed" });
+    }
+  });
+
+  // PayPal webhook handler
+  app.post("/api/webhooks/paypal", async (req, res) => {
+    try {
+      const webhookEvent = req.body;
+
+      console.log("PayPal webhook received:", webhookEvent.event_type);
+
+      // Handle different webhook events
+      switch (webhookEvent.event_type) {
+        case "PAYMENT.CAPTURE.COMPLETED":
+          // Payment was captured successfully
+          console.log("Payment capture completed:", webhookEvent.resource.id);
+          break;
+
+        case "PAYMENT.CAPTURE.DENIED":
+          // Payment was denied
+          console.log("Payment capture denied:", webhookEvent.resource.id);
+          break;
+
+        case "PAYMENT.CAPTURE.REFUNDED":
+          // Payment was refunded
+          console.log("Payment refunded:", webhookEvent.resource.id);
+          break;
+      }
+
+      res.status(200).send("Webhook received");
+    } catch (error) {
+      console.error("Webhook error:", error);
+      res.status(500).send("Webhook processing failed");
+    }
+  });
+
+  // DEPRECATED: Purchase product and mint NFT (XRP-based, kept for backward compatibility)
   app.post("/api/products/:id/purchase", async (req, res) => {
     try {
       const { buyerWallet } = req.body;
@@ -711,29 +961,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name,
       });
 
-      // Generate XRP wallet
-      const { WalletService } = await import("./wallet-service.js");
-      const generatedWallet = WalletService.generateWallet();
-
-      // Store wallet
-      const wallet = await storage.createWallet({
-        customerId: customer.id,
-        xrpAddress: generatedWallet.xrpAddress,
-        encryptedSeedPhrase: generatedWallet.encryptedSeedPhrase,
-      });
-
       // Store customer ID in session
       req.session.customerId = customer.id;
 
-      // Return customer data with wallet and seed phrase (ONLY TIME WE SHOW SEED PHRASE)
+      // Return customer data (no wallet generation - customers use PayPal for payments)
       const { password: _, ...customerData } = customer;
-      res.json({
-        ...customerData,
-        wallet: {
-          xrpAddress: wallet.xrpAddress,
-          seedPhrase: generatedWallet.seedPhrase, // Show only once!
-        }
-      });
+      res.json(customerData);
     } catch (error) {
       console.error("Registration error:", error);
       res.status(500).json({ error: "Registration failed" });

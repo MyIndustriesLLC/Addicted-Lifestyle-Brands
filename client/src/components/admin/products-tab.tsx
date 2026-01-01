@@ -83,7 +83,7 @@ export function ProductsTab() {
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>{product.price} XRP</TableCell>
+                  <TableCell>${parseFloat(product.price).toFixed(2)} USD</TableCell>
                   <TableCell className="font-mono text-sm">{product.barcodeId}</TableCell>
                   <TableCell>
                     {salesCount} / {inventoryLimit}

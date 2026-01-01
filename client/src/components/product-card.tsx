@@ -68,7 +68,7 @@ export function ProductCard({ id, name, price, image, nftStatus, barcodeId, sale
       </CardContent>
       <CardFooter className="p-3 sm:p-4 pt-0 flex items-center justify-between gap-2">
         <div>
-          <p className="text-xl sm:text-2xl font-display font-bold" data-testid={`text-price-${id}`}>{priceValue} XRP</p>
+          <p className="text-xl sm:text-2xl font-display font-bold" data-testid={`text-price-${id}`}>${priceValue.toFixed(2)} USD</p>
           <p className="text-xs text-muted-foreground">+ Unique NFT</p>
         </div>
         <Button

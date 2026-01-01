@@ -61,7 +61,7 @@ export function MetricsTab() {
   const stats = [
     {
       title: "Total Revenue",
-      value: `${totalRevenue.toFixed(2)} XRP`,
+      value: `$${totalRevenue.toFixed(2)} USD`,
       description: `${totalSales} completed sales`,
       icon: DollarSign,
       trend: "+12.5%",
@@ -69,7 +69,7 @@ export function MetricsTab() {
     },
     {
       title: "Avg Order Value",
-      value: `${averageOrderValue.toFixed(2)} XRP`,
+      value: `$${averageOrderValue.toFixed(2)} USD`,
       description: "Per transaction",
       icon: TrendingUp,
       testId: "stat-avg-order"
@@ -147,7 +147,7 @@ export function MetricsTab() {
                   <div key={date} className="space-y-1">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">{date}</span>
-                      <span className="font-medium">{amount.toFixed(2)} XRP</span>
+                      <span className="font-medium">${amount.toFixed(2)} USD</span>
                     </div>
                     <div className="w-full bg-muted rounded-full h-2">
                       <div
@@ -189,7 +189,7 @@ export function MetricsTab() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-medium">{product.price} XRP</p>
+                      <p className="text-sm font-medium">${parseFloat(product.price).toFixed(2)} USD</p>
                       <p className="text-xs text-muted-foreground">
                         {(parseInt(product.salesCount) / parseInt(product.inventoryLimit) * 100).toFixed(0)}% sold
                       </p>
@@ -228,7 +228,7 @@ export function MetricsTab() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-medium">{transaction.amount} XRP</p>
+                      <p className="text-sm font-medium">${parseFloat(transaction.amount).toFixed(2)} USD</p>
                       <p className={`text-xs capitalize ${statusColors[transaction.status as keyof typeof statusColors]}`}>
                         {transaction.status}
                       </p>

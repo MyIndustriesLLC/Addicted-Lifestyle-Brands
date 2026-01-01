@@ -31,9 +31,20 @@ export const transactions = pgTable("transactions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   productId: varchar("product_id").notNull().references(() => products.id),
   nftId: varchar("nft_id").references(() => nfts.id),
-  buyerWallet: text("buyer_wallet").notNull(),
-  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
-  txHash: text("tx_hash"),
+
+  // DEPRECATED: Keep for historical records (XRP wallet address)
+  buyerWallet: text("buyer_wallet"),
+
+  // PayPal payment fields
+  paypalOrderId: text("paypal_order_id"),
+  paypalTransactionId: text("paypal_transaction_id"),
+  paypalPayerEmail: text("paypal_payer_email"),
+  paypalPayerName: text("paypal_payer_name"),
+
+  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(), // USD (previously XRP)
+  currency: text("currency").notNull().default("USD"),
+  paymentProvider: text("payment_provider").notNull().default("paypal"),
+  txHash: text("tx_hash"), // DEPRECATED: XRP transaction hash
   status: text("status").notNull().default("pending"),
   uniqueBarcodeId: text("unique_barcode_id").notNull(),
   purchaseNumber: numeric("purchase_number", { precision: 10, scale: 0 }),
@@ -59,35 +70,9 @@ export const customers = pgTable("customers", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const wallets = pgTable("wallets", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  customerId: varchar("customer_id").notNull().references(() => customers.id),
-  xrpAddress: text("xrp_address").notNull().unique(),
-  encryptedSeedPhrase: text("encrypted_seed_phrase").notNull(),
-  seedPhraseShown: timestamp("seed_phrase_shown"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-export const linkedWallets = pgTable("linked_wallets", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  customerId: varchar("customer_id").notNull().references(() => customers.id),
-  currency: text("currency").notNull(),
-  address: text("address").notNull(),
-  label: text("label"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
-export const conversionTransactions = pgTable("conversion_transactions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  customerId: varchar("customer_id").notNull().references(() => customers.id),
-  fromCurrency: text("from_currency").notNull(),
-  toCurrency: text("to_currency").notNull(),
-  amount: numeric("amount", { precision: 20, scale: 8 }).notNull(),
-  rate: numeric("rate", { precision: 20, scale: 8 }).notNull(),
-  status: text("status").notNull().default("pending"),
-  externalTxId: text("external_tx_id"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
+// REMOVED: Wallet-related tables (wallets, linkedWallets, conversionTransactions)
+// Customers no longer need XRP wallets for payments (using PayPal instead)
+// NFTs are minted to company wallet and customers can import them to their own wallets
 
 export const employees = pgTable("employees", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -206,21 +191,7 @@ export const insertCustomerSchema = createInsertSchema(customers).omit({
   totalSpent: true,
 });
 
-export const insertWalletSchema = createInsertSchema(wallets).omit({
-  id: true,
-  createdAt: true,
-  seedPhraseShown: true,
-});
-
-export const insertLinkedWalletSchema = createInsertSchema(linkedWallets).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertConversionTransactionSchema = createInsertSchema(conversionTransactions).omit({
-  id: true,
-  createdAt: true,
-});
+// REMOVED: Wallet insert schemas (insertWalletSchema, insertLinkedWalletSchema, insertConversionTransactionSchema)
 
 export const insertEmployeeSchema = createInsertSchema(employees).omit({
   id: true,
@@ -283,14 +254,7 @@ export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
 
-export type Wallet = typeof wallets.$inferSelect;
-export type InsertWallet = z.infer<typeof insertWalletSchema>;
-
-export type LinkedWallet = typeof linkedWallets.$inferSelect;
-export type InsertLinkedWallet = z.infer<typeof insertLinkedWalletSchema>;
-
-export type ConversionTransaction = typeof conversionTransactions.$inferSelect;
-export type InsertConversionTransaction = z.infer<typeof insertConversionTransactionSchema>;
+// REMOVED: Wallet type exports (Wallet, InsertWallet, LinkedWallet, InsertLinkedWallet, ConversionTransaction, InsertConversionTransaction)
 
 export type Employee = typeof employees.$inferSelect;
 export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
