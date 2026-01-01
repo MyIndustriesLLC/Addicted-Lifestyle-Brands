@@ -9,6 +9,9 @@ interface MintNFTParams {
   collectionName: string;
   customerName: string;
   customerWallet?: string;
+  purchaseId?: string;
+  dateOfPurchase?: string;
+  qrCodeImage?: string; // Base64 encoded QR code image
 }
 
 interface MintNFTResult {
@@ -87,9 +90,12 @@ export class RippleService {
           barcode: params.barcodeId,
           original_owner: params.customerName,
           original_wallet: params.customerWallet || "Unclaimed",
-          minted_at: new Date().toISOString(),
+          minted_at: params.dateOfPurchase || new Date().toISOString(),
           issuer: this.wallet?.address || "Unknown",
           network: "XRP Ledger Testnet",
+          purchase_id: params.purchaseId,
+          date_of_purchase: params.dateOfPurchase || new Date().toISOString(),
+          qr_code_image: params.qrCodeImage, // Embedded QR code for blockchain verification
         })
       );
 

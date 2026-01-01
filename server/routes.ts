@@ -154,7 +154,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get current sales count for this product
       const currentSalesCount = parseInt(product.salesCount) || 0;
 
-      // Mint NFT on Ripple with enhanced metadata
+      // Generate purchase date
+      const dateOfPurchase = new Date().toISOString();
+
+      // Step 1: Generate QR code with purchase data (before minting)
+      const purchaseQRCode = await qrCodeGenerator.generatePurchaseQRCode({
+        purchase_id: transaction.id,
+        customer_name: customer?.name || "Anonymous",
+        collection_name: "NFT Streetwear Collection",
+        product_name: product.name,
+        date_of_purchase: dateOfPurchase,
+        // NFT token will be added after minting
+      });
+
+      // Mint NFT on Ripple with enhanced metadata and QR code
       const mintResult = await rippleService.mintNFT({
         barcodeId: uniqueBarcodeId,
         productName: product.name,
@@ -164,9 +177,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         collectionName: "NFT Streetwear Collection",
         customerName: customer?.name || "Anonymous",
         customerWallet: buyerWallet,
+        purchaseId: transaction.id,
+        dateOfPurchase,
+        qrCodeImage: purchaseQRCode, // Embed QR code in NFT metadata
       });
 
       if (mintResult.success) {
+        // Step 2: Regenerate QR code with NFT token ID for printing
+        const finalQRCode = await qrCodeGenerator.generatePurchaseQRCode({
+          purchase_id: transaction.id,
+          customer_name: customer?.name || "Anonymous",
+          collection_name: "NFT Streetwear Collection",
+          product_name: product.name,
+          date_of_purchase: dateOfPurchase,
+          nft_token_id: mintResult.tokenId,
+        });
+
         // Update NFT with blockchain data
         await storage.updateNFT(nft.id, {
           tokenId: mintResult.tokenId,
@@ -202,19 +228,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             try {
               console.log("Starting Printful integration for transaction:", transaction.id);
 
-              // Step 1: Generate QR code for NFT
-              const qrCodeBuffer = await qrCodeGenerator.generateNFTQRCodeBuffer({
-                tokenId: mintResult.tokenId || "",
-                issuer: rippleService.getIssuerAddress(),
-                walletAddress: buyerWallet,
+              // Step 1: Generate blockchain QR code with complete purchase data
+              const qrCodeBuffer = await qrCodeGenerator.generatePurchaseQRCodeBuffer({
+                purchase_id: transaction.id,
+                customer_name: customer.name,
+                collection_name: "NFT Streetwear Collection",
+                product_name: product.name,
+                date_of_purchase: dateOfPurchase,
+                nft_token_id: mintResult.tokenId,
               });
 
-              // Generate data URL for email
-              const qrCodeDataUrl = await qrCodeGenerator.generateNFTQRCode({
-                tokenId: mintResult.tokenId || "",
-                issuer: rippleService.getIssuerAddress(),
-                walletAddress: buyerWallet,
-              });
+              // Generate data URL for email (same QR code)
+              const qrCodeDataUrl = finalQRCode;
 
               // Step 2: Create print file with QR code
               const printFile = await imageComposer.createQRPrintFile(qrCodeBuffer, 1000);

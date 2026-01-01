@@ -11,6 +11,7 @@ import Admin from "@/pages/admin";
 import AdminLogin from "@/pages/admin-login";
 import AdminDashboard from "@/pages/admin-dashboard";
 import VerifyNFT from "@/pages/verify-nft";
+import BlockchainViewer from "@/pages/blockchain-viewer";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -23,6 +24,7 @@ function Router() {
       <Route path="/feed" component={Feed} />
       <Route path="/verify/:tokenId" component={VerifyNFT} />
       <Route path="/verify" component={VerifyNFT} />
+      <Route path="/blockchain/view/:tokenId" component={BlockchainViewer} />
       <Route path="/admin" component={Admin} />
       <Route path="/admin-login" component={AdminLogin} />
       <Route path="/admin-dashboard" component={AdminDashboard} />
