@@ -2,9 +2,9 @@ import { WalletConnectButton } from "./wallet-connect-button";
 import { ThemeToggle } from "./theme-toggle";
 import { NetworkStatus } from "./network-status";
 import { MobileMenu } from "./mobile-menu";
-import { ShoppingCart, Sparkles, Settings, Users } from "lucide-react";
+import { ShoppingCart } from "./shopping-cart";
+import { Sparkles, Settings, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 
@@ -63,15 +63,7 @@ export function Header() {
               </Button>
             </div>
           </Link>
-          <Button variant="ghost" size="icon" className="relative h-12 w-12" data-testid="button-cart">
-            <ShoppingCart className="h-5 w-5" />
-            <Badge
-              variant="default"
-              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
-            >
-              0
-            </Badge>
-          </Button>
+          <ShoppingCart />
           {/* Desktop Theme Toggle - hidden on mobile, available in mobile menu */}
           <div className="hidden md:block">
             <ThemeToggle />

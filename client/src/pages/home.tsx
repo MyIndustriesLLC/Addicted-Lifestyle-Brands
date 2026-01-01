@@ -5,7 +5,8 @@ import { PurchaseDialog } from "@/components/purchase-dialog";
 import { CustomerRegisterDialog } from "@/components/customer-register-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { ShieldCheck, Zap, Globe } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 import type { Product } from "@shared/schema";
 import type { CustomerAuthResponse } from "@/types/api";
 
@@ -15,6 +16,8 @@ export default function Home() {
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
   const howItWorksRef = useRef<HTMLElement | null>(null);
   const collectionRef = useRef<HTMLElement | null>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: products = [], isLoading } = useQuery<Product[]>({
     queryKey: ["/api/products"],
@@ -22,6 +25,37 @@ export default function Home() {
 
   const { data: customerAuth, refetch: refetchAuth } = useQuery<CustomerAuthResponse>({
     queryKey: ["/api/customer/me"],
+  });
+
+  const addToCartMutation = useMutation({
+    mutationFn: async (productId: string) => {
+      const res = await fetch("/api/cart/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ productId, quantity: 1 }),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to add to cart");
+      }
+      return res.json();
+    },
+    onSuccess: (_, productId) => {
+      const product = products.find(p => p.id === productId);
+      queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
+      toast({
+        title: "Added to cart!",
+        description: `${product?.name} has been added to your cart`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to add to cart",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   useEffect(() => {
@@ -40,8 +74,7 @@ export default function Home() {
       setRegisterDialogOpen(true);
       return;
     }
-    setSelectedProduct(product);
-    setPurchaseDialogOpen(true);
+    addToCartMutation.mutate(product.id);
   };
 
   const handleRegistrationSuccess = () => {

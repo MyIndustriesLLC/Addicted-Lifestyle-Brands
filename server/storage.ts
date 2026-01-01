@@ -23,6 +23,12 @@ import {
   type InsertComment,
   type Follow,
   type InsertFollow,
+  type CartItem,
+  type InsertCartItem,
+  type Coupon,
+  type InsertCoupon,
+  type CouponUsage,
+  type InsertCouponUsage,
 } from "../shared/schema";
 import { randomUUID } from "crypto";
 
@@ -116,7 +122,33 @@ export interface IStorage {
   // Points & Level operations
   addPoints(customerId: string, points: number): Promise<void>;
   calculateLevel(points: number): number;
+  calculatePointsForLevel(level: number): number;
+  getPointsToNextLevel(currentPoints: number): { currentLevel: number; nextLevel: number; pointsNeeded: number; pointsInCurrentLevel: number };
   updateCustomerLevel(customerId: string): Promise<void>;
+
+  // Cart operations
+  addToCart(customerId: string, productId: string, quantity?: number): Promise<CartItem>;
+  getCartItems(customerId: string): Promise<CartItem[]>;
+  updateCartItemQuantity(customerId: string, productId: string, quantity: number): Promise<void>;
+  removeFromCart(customerId: string, productId: string): Promise<void>;
+  clearCart(customerId: string): Promise<void>;
+  getCartTotal(customerId: string): Promise<{ subtotal: number; itemCount: number }>;
+
+  // Coupon operations
+  createCoupon(coupon: InsertCoupon): Promise<Coupon>;
+  getCoupon(id: string): Promise<Coupon | undefined>;
+  getCouponByCode(code: string): Promise<Coupon | undefined>;
+  getAllCoupons(): Promise<Coupon[]>;
+  updateCoupon(id: string, updates: Partial<Coupon>): Promise<void>;
+  deleteCoupon(id: string): Promise<void>;
+  validateCoupon(code: string, customerId: string, subtotal: number): Promise<{
+    valid: boolean;
+    error?: string;
+    coupon?: Coupon;
+    discountAmount?: number;
+  }>;
+  applyCoupon(couponId: string, customerId: string, transactionId: string, discountAmount: number): Promise<void>;
+  incrementCouponUsage(couponId: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -132,6 +164,9 @@ export class MemStorage implements IStorage {
   private postLikes: Map<string, { postId: string; customerId: string }>;
   private comments: Map<string, Comment>;
   private follows: Map<string, { followerId: string; followingId: string }>;
+  private cartItems: Map<string, CartItem>;
+  private coupons: Map<string, Coupon>;
+  private couponUsage: Map<string, CouponUsage>;
 
   constructor() {
     this.products = new Map();
@@ -146,6 +181,9 @@ export class MemStorage implements IStorage {
     this.postLikes = new Map();
     this.comments = new Map();
     this.follows = new Map();
+    this.cartItems = new Map();
+    this.coupons = new Map();
+    this.couponUsage = new Map();
   }
 
   reset(): void {
@@ -161,6 +199,9 @@ export class MemStorage implements IStorage {
     this.postLikes.clear();
     this.comments.clear();
     this.follows.clear();
+    this.cartItems.clear();
+    this.coupons.clear();
+    this.couponUsage.clear();
   }
 
   // Product operations
@@ -732,7 +773,39 @@ export class MemStorage implements IStorage {
 
   // Points & Level operations
   calculateLevel(points: number): number {
-    return Math.floor(points / 10) + 1; // 10 points per level
+    // Exponential progression: each level requires 50% more points than previous
+    // Level 1: 0-99 points (100 points needed)
+    // Level 2: 100-249 points (150 points needed)
+    // Level 3: 250-474 points (225 points needed)
+    // Formula: level = 1 + log(points/200 + 1) / log(1.5)
+
+    if (points < 100) return 1;
+
+    const level = 1 + Math.log(points / 200 + 1) / Math.log(1.5);
+    return Math.floor(level);
+  }
+
+  calculatePointsForLevel(level: number): number {
+    // Calculate total points needed to reach a specific level
+    // Formula: points = 200 * (1.5^(level-1) - 1)
+    if (level <= 1) return 0;
+    return Math.floor(200 * (Math.pow(1.5, level - 1) - 1));
+  }
+
+  getPointsToNextLevel(currentPoints: number): { currentLevel: number; nextLevel: number; pointsNeeded: number; pointsInCurrentLevel: number } {
+    const currentLevel = this.calculateLevel(currentPoints);
+    const nextLevel = currentLevel + 1;
+    const pointsForNextLevel = this.calculatePointsForLevel(nextLevel);
+    const pointsForCurrentLevel = this.calculatePointsForLevel(currentLevel);
+    const pointsNeeded = pointsForNextLevel - currentPoints;
+    const pointsInCurrentLevel = currentPoints - pointsForCurrentLevel;
+
+    return {
+      currentLevel,
+      nextLevel,
+      pointsNeeded,
+      pointsInCurrentLevel
+    };
   }
 
   async addPoints(customerId: string, points: number): Promise<void> {
@@ -761,6 +834,222 @@ export class MemStorage implements IStorage {
     await this.updateCustomer(customerId, {
       level: newLevel.toString()
     });
+  }
+
+  // Cart operations
+  async addToCart(customerId: string, productId: string, quantity: number = 1): Promise<CartItem> {
+    // Check if item already exists in cart
+    const existingItem = Array.from(this.cartItems.values()).find(
+      (item) => item.customerId === customerId && item.productId === productId
+    );
+
+    if (existingItem) {
+      // Update quantity if item exists
+      const newQuantity = parseInt(existingItem.quantity) + quantity;
+      existingItem.quantity = newQuantity.toString();
+      this.cartItems.set(existingItem.id, existingItem);
+      return existingItem;
+    }
+
+    // Create new cart item
+    const id = randomUUID();
+    const cartItem: CartItem = {
+      id,
+      customerId,
+      productId,
+      quantity: quantity.toString(),
+      addedAt: new Date(),
+    };
+    this.cartItems.set(id, cartItem);
+    return cartItem;
+  }
+
+  async getCartItems(customerId: string): Promise<CartItem[]> {
+    return Array.from(this.cartItems.values()).filter(
+      (item) => item.customerId === customerId
+    );
+  }
+
+  async updateCartItemQuantity(customerId: string, productId: string, quantity: number): Promise<void> {
+    const item = Array.from(this.cartItems.values()).find(
+      (item) => item.customerId === customerId && item.productId === productId
+    );
+
+    if (item) {
+      if (quantity <= 0) {
+        // Remove item if quantity is 0 or negative
+        this.cartItems.delete(item.id);
+      } else {
+        item.quantity = quantity.toString();
+        this.cartItems.set(item.id, item);
+      }
+    }
+  }
+
+  async removeFromCart(customerId: string, productId: string): Promise<void> {
+    const item = Array.from(this.cartItems.values()).find(
+      (item) => item.customerId === customerId && item.productId === productId
+    );
+
+    if (item) {
+      this.cartItems.delete(item.id);
+    }
+  }
+
+  async clearCart(customerId: string): Promise<void> {
+    const customerItems = Array.from(this.cartItems.entries()).filter(
+      ([_, item]) => item.customerId === customerId
+    );
+
+    for (const [id, _] of customerItems) {
+      this.cartItems.delete(id);
+    }
+  }
+
+  async getCartTotal(customerId: string): Promise<{ subtotal: number; itemCount: number }> {
+    const cartItems = await this.getCartItems(customerId);
+    let subtotal = 0;
+    let itemCount = 0;
+
+    for (const item of cartItems) {
+      const product = await this.getProduct(item.productId);
+      if (product) {
+        const quantity = parseInt(item.quantity);
+        const price = parseFloat(product.price);
+        subtotal += price * quantity;
+        itemCount += quantity;
+      }
+    }
+
+    return { subtotal, itemCount };
+  }
+
+  // Coupon operations
+  async createCoupon(insertCoupon: InsertCoupon): Promise<Coupon> {
+    const id = randomUUID();
+    const coupon: Coupon = {
+      ...insertCoupon,
+      minPurchaseAmount: insertCoupon.minPurchaseAmount ?? null,
+      maxUses: insertCoupon.maxUses ?? null,
+      expiresAt: insertCoupon.expiresAt ?? null,
+      active: insertCoupon.active ?? null,
+      usedCount: "0",
+      id,
+      createdAt: new Date(),
+    };
+    this.coupons.set(id, coupon);
+    return coupon;
+  }
+
+  async getCoupon(id: string): Promise<Coupon | undefined> {
+    return this.coupons.get(id);
+  }
+
+  async getCouponByCode(code: string): Promise<Coupon | undefined> {
+    return Array.from(this.coupons.values()).find(
+      (coupon) => coupon.code.toLowerCase() === code.toLowerCase()
+    );
+  }
+
+  async getAllCoupons(): Promise<Coupon[]> {
+    return Array.from(this.coupons.values());
+  }
+
+  async updateCoupon(id: string, updates: Partial<Coupon>): Promise<void> {
+    const coupon = this.coupons.get(id);
+    if (coupon) {
+      Object.assign(coupon, updates);
+      this.coupons.set(id, coupon);
+    }
+  }
+
+  async deleteCoupon(id: string): Promise<void> {
+    this.coupons.delete(id);
+  }
+
+  async validateCoupon(
+    code: string,
+    customerId: string,
+    subtotal: number
+  ): Promise<{
+    valid: boolean;
+    error?: string;
+    coupon?: Coupon;
+    discountAmount?: number;
+  }> {
+    const coupon = await this.getCouponByCode(code);
+
+    if (!coupon) {
+      return { valid: false, error: "Invalid coupon code" };
+    }
+
+    // Check if coupon is active
+    if (!coupon.active) {
+      return { valid: false, error: "This coupon is not active" };
+    }
+
+    // Check if expired
+    if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) {
+      return { valid: false, error: "This coupon has expired" };
+    }
+
+    // Check max uses
+    if (coupon.maxUses && parseInt(coupon.usedCount) >= parseInt(coupon.maxUses)) {
+      return { valid: false, error: "This coupon has reached its usage limit" };
+    }
+
+    // Check minimum purchase amount
+    if (coupon.minPurchaseAmount && subtotal < parseFloat(coupon.minPurchaseAmount)) {
+      return {
+        valid: false,
+        error: `Minimum purchase of $${coupon.minPurchaseAmount} required`,
+      };
+    }
+
+    // Calculate discount
+    let discountAmount = 0;
+    if (coupon.discountType === "percentage") {
+      discountAmount = (subtotal * parseFloat(coupon.discountValue)) / 100;
+    } else if (coupon.discountType === "fixed") {
+      discountAmount = parseFloat(coupon.discountValue);
+    }
+
+    // Don't allow discount to exceed subtotal
+    discountAmount = Math.min(discountAmount, subtotal);
+
+    return {
+      valid: true,
+      coupon,
+      discountAmount,
+    };
+  }
+
+  async applyCoupon(
+    couponId: string,
+    customerId: string,
+    transactionId: string,
+    discountAmount: number
+  ): Promise<void> {
+    const id = randomUUID();
+    const usage: CouponUsage = {
+      id,
+      couponId,
+      customerId,
+      transactionId,
+      discountAmount: discountAmount.toFixed(2),
+      usedAt: new Date(),
+    };
+    this.couponUsage.set(id, usage);
+  }
+
+  async incrementCouponUsage(couponId: string): Promise<void> {
+    const coupon = await this.getCoupon(couponId);
+    if (coupon) {
+      const newCount = parseInt(coupon.usedCount) + 1;
+      await this.updateCoupon(couponId, {
+        usedCount: newCount.toString(),
+      });
+    }
   }
 }
 
