@@ -106,6 +106,10 @@ export function CustomerAuthButton() {
         open={registerOpen}
         onOpenChange={setRegisterOpen}
         onSuccess={handleRegisterSuccess}
+        onSwitchToLogin={() => {
+          setRegisterOpen(false);
+          setLoginOpen(true);
+        }}
       />
     </>
   );
